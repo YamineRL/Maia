@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  M4-R9: the plain intent handoff to Proton Calendar's own compose screen,
+  item C, decided by the user 2026-09-14 over ICSx5 and Sync for Proton
+  (docs/research/M4-R9-proton-calendar.md, option 2d). Copy decisions are in
+  docs/M4-R9-copy.md; nothing here was improvised at the call site, same
+  discipline as strings_m4_notes.xml.
+
+  The NoCalendars.kt button uses a raw string literal, not a resource here,
+  matching that screen's own existing convention (its "Set up a calendar
+  with DAVx5" button is a literal too).
+-->
+<resources>
+    <string name="m4_r9_open_in_proton_action">Create in Proton Calendar instead</string>
+    <string name="m4_r9_open_in_proton_cd">Create in Proton Calendar instead. Opens Proton\'s own screen with the same words. Maia cannot tell whether you saved it there.</string>
+
+    <!-- Settings, and the remembered choice. -->
+    <string name="settings_events_label">EVENTS GO TO</string>
+    <string name="settings_events_phone">This phone\'s calendar</string>
+    <string name="settings_events_proton">Proton Calendar</string>
+    <string name="settings_events_phone_caption">Maia writes to a calendar the system syncs. When there is none, it offers Proton.</string>
+    <string name="settings_events_proton_caption">Maia opens Proton\'s own new-event screen with the event filled in. You save it there.</string>
+    <string name="settings_events_to_proton">Send events to Proton Calendar</string>
+    <string name="settings_events_to_phone">Use this phone\'s calendar instead</string>
+    <string name="settings_entry">SETTINGS</string>
+    <string name="settings_city_label">HOME CITY</string>
+    <string name="settings_city_hint">e.g. Lyon</string>
+    <string name="settings_city_caption">Where Maia looks up the weather when you don\'t name a place. Kept on this phone.</string>
+</resources>

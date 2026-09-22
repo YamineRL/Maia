@@ -1,0 +1,16 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- A microphone, drawn at the 72dp safe zone of the 108dp canvas. -->
+    <path
+        android:fillColor="#D0BCFF"
+        android:pathData="M54,32m-8,0a8,8 0,1 1,16 0l0,14a8,8 0,1 1,-16 0z" />
+    <path
+        android:fillColor="#D0BCFF"
+        android:pathData="M38,44h4a12,12 0,0 0,24 0h4a16,16 0,0 1,-14 15.8V68h-4v-8.2A16,16 0,0 1,38 44z" />
+    <path
+        android:fillColor="#D0BCFF"
+        android:pathData="M44,72h20v4h-20z" />
+</vector>

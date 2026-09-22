@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!--
+      Read is needed to list the calendars the chooser offers and to answer
+      "am I free". Write is needed to commit. Both are requested at first use
+      rather than at launch, per PRD section 5: a permission dialog before the
+      user has seen what the app does is a permission dialog that gets denied.
+    -->
+    <uses-permission android:name="android.permission.READ_CALENDAR" />
+    <uses-permission android:name="android.permission.WRITE_CALENDAR" />
+</manifest>

@@ -1,0 +1,4 @@
+build/
+.gradle/
+local.properties
+core-audio/libs/*.aar

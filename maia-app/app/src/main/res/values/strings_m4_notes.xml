@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  M4 notes, work order rows 7 and 8.
+
+  Every id and every word here is verbatim from docs/M4-copy.md, which the
+  design seat owns; nothing in this file was written by engineering. Its own
+  file for the same reason as strings_m3.xml: strings.xml belongs to M2.
+-->
+<resources>
+    <string name="m4_note_card_eyebrow">NEW NOTE</string>
+    <string name="m4_note_row_body_label">Note</string>
+    <string name="m4_note_row_due_label">Due</string>
+    <string name="m4_note_row_folder_label">Goes into</string>
+    <string name="m4_note_row_folder_value">%1$s, today\'s file</string>
+    <string name="m4_note_row_folder_value_root">the top of your storage, today\'s file</string>
+    <string name="m4_note_row_folder_detail">%1$s</string>
+    <string name="m4_note_hold_action">Hold to write</string>
+    <string name="m4_note_hold_caption">There is no undo. Change it in your notes app afterwards.</string>
+    <string name="m4_note_discard_action">Discard</string>
+    <string name="m4_note_due_guessed_reason">Maia filled in the part you did not say</string>
+    <string name="m4_event_keep_as_note_action">Keep as a note instead</string>
+    <string name="m4_event_keep_as_note_cd">Keep as a note instead. Opens a note card with the same words. Nothing is written yet.</string>
+    <string name="m4_note_row_body_cd">Note: %1$s. Double tap to change.</string>
+    <string name="m4_note_row_due_cd">Due %1$s.</string>
+    <string name="m4_note_row_due_guessed_cd">Due %1$s, guessed. Maia filled in the part you did not say.</string>
+    <string name="m4_note_row_folder_cd">Goes into today\'s file in %1$s.</string>
+    <string name="m4_note_hold_cd">Hold to write the note. There is no undo.</string>
+    <string name="m4_note_discard_cd">Discard. Nothing is written and the words are forgotten.</string>
+    <string name="m4_note_writing_detail">into %1$s</string>
+    <string name="m4_no_folder_eyebrow">NOWHERE TO KEEP NOTES</string>
+    <string name="m4_no_folder_title">Choose a folder for your notes.</string>
+    <string name="m4_folder_gone_title">The notes folder is not there any more.</string>
+    <string name="m4_no_folder_body">Maia adds each note as a line to one Markdown file per day, in a folder you pick. If that folder syncs, your notes sync with it, and once a note is written Maia cannot take it back.</string>
+    <string name="m4_folder_gone_body">It was moved, deleted, or Maia\'s access to it was removed. Pick it again, or another folder.</string>
+    <string name="m4_no_folder_held">Held: %1$s</string>
+    <string name="m4_no_folder_held_note">Pick a folder, then hold to write it.</string>
+    <string name="m4_no_folder_choose_action">Choose a folder</string>
+    <string name="m4_folder_gone_choose_action">Choose a folder again</string>
+    <string name="m4_no_folder_discard_action">Discard</string>
+    <string name="m4_no_folder_held_cd">Held note: %1$s. Pick a folder, then hold to write it.</string>
+    <string name="m4_no_folder_choose_cd">Choose a folder. Opens the system folder picker.</string>
+    <string name="m4_note_write_fault_label">COULD NOT WRITE</string>
+    <string name="m4_note_write_fault_title">The note was not written.</string>
+    <string name="m4_note_write_fault_body">Nothing was added to the file. Your words are still here.</string>
+    <string name="m4_note_write_fault_retry_action">Try again</string>
+    <string name="m4_locked_queued_note_label">KEPT AS A NOTE</string>
+    <string name="m4_locked_queued_note_cd">Kept as a note: %1$s</string>
+    <string name="m4_locked_queued_note_due_cd">Kept as a note: %1$s, due %2$s</string>
+    <string name="m4_locked_unlock_action_cd_note">Unlock. The note card for this sentence opens after you unlock.</string>
+    <string name="m4_note_confirmed_eyebrow">WRITTEN TO %1$s</string>
+    <string name="m4_note_confirmed_line">%1$s  %2$s</string>
+    <string name="m4_note_confirmed_caption">It syncs wherever that folder syncs.</string>
+    <string name="m4_note_done_action">Done</string>
+    <string name="m4_note_spoken_confirmation">Noted.</string>
+    <string name="m4_note_confirmed_cd">Note written to %1$s at %2$s: %3$s. There is no undo.</string>
+    <string name="m4_settings_notes_label">NOTES FOLDER</string>
+    <string name="m4_settings_notes_value">%1$s</string>
+    <string name="m4_settings_notes_value_root">The top of your storage</string>
+    <string name="m4_settings_notes_access">Maia can read and add to files in this folder, and nowhere else.</string>
+    <string name="m4_settings_notes_change_action">Choose a different folder</string>
+    <string name="m4_settings_notes_release_action">Remove Maia\'s access</string>
+    <string name="m4_settings_notes_none">None chosen</string>
+    <string name="m4_settings_notes_none_caption">Notes you say are held until you choose one.</string>
+    <string name="m4_settings_notes_choose_action">Choose a folder</string>
+    <string name="m4_settings_notes_gone_caption">Maia still has access, but this folder is not there any more.</string>
+    <string name="m4_settings_notes_released">Access removed. Your notes are still in the folder.</string>
+    <string name="m4_settings_notes_row_cd">Notes folder: %1$s. Maia can read and add to files in this folder, and nowhere else.</string>
+    <string name="m4_settings_notes_release_cd">Remove Maia\'s access to %1$s. Your notes stay in the folder.</string>
+</resources>

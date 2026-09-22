@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The android.speech meta-data for MaiaRecognitionService.
+
+    On selectableAsDefault, which is not set here on purpose. From
+    docs/research/R3.md (AOSP android16-release, read 2026-09-13): the role
+    grant does not point the system's recogniser at the holder. findAvailRecognizer
+    picks the package named by config_systemSpeechRecognizer if it is available,
+    and otherwise the first available RecognitionService on the device, after
+    filtering out any marked non-selectable as default. R3 read that as meaning
+    installing Maia on a clean GrapheneOS phone would make it the system
+    recogniser, role or no role.
+
+    The phone says no. G7 in spike/assistant-role/README.md: the spike shipped
+    one RecognitionService with selectableAsDefault unset, exactly as this file
+    leaves it, and was the only recogniser installed, and
+    voice_recognition_service was null before the role, after it, after a reboot
+    and after the unlock, with "no auto selectable voice recognition services
+    found for user 0" in the log. Why an app-installed recogniser does not count
+    as available on this build is not established, and nothing here should be
+    read as knowing.
+
+    Setting android:selectableAsDefault="false" here is the lever that would opt
+    out, at the cost of nothing else: R1's requirement is on the
+    voice_interaction meta-data naming a recognitionService, not on that service
+    being selectable. It is left unset because it is the user's decision, and
+    because on the reading above it is a lever with nothing on the other end of
+    it. If a later build does select Maia, this is the attribute to set.
+
+    settingsActivity points at MainActivity, as voice_interaction.xml does, until
+    Maia has settings of its own.
+-->
+<recognition-service
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:settingsActivity="dev.maia.app.MainActivity" />

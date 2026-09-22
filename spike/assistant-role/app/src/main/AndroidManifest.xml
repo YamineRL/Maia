@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!--
+        M3 brief section 7 and privacy item V7. RECORD_AUDIO is the only
+        permission this spike asks for. There is deliberately no INTERNET, no
+        SYSTEM_ALERT_WINDOW, no DISABLE_KEYGUARD, no FOREGROUND_SERVICE and no
+        storage permission: the spike logs to logcat and writes nothing.
+
+        BIND_VOICE_INTERACTION is NOT requested. It is a signature permission
+        held by the system, and it appears below only as the android:permission
+        guard on the two voice services, so nothing but the system can bind
+        them.
+    -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+
+    <application
+        android:allowBackup="false"
+        android:label="Maia assist spike"
+        android:supportsRtl="true"
+        android:theme="@android:style/Theme.DeviceDefault.DayNight">
+
+        <!--
+            The launcher entry exists only so the spike can be opened once to
+            grant RECORD_AUDIO. A permission prompt cannot be answered from a
+            lock screen, so the grant has to happen before G5 is attempted.
+        -->
+        <activity
+            android:name=".MainActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!--
+            G6: the target of startAssistantActivity. showWhenLocked and
+            turnScreenOn are manifest attributes, not permissions.
+            excludeFromRecents keeps the spike out of the recents list so a
+            locked-phone result is not confused with a task switch.
+        -->
+        <activity
+            android:name=".AssistActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true" />
+
+        <!--
+            The role holder. Section 1.1: guarded by BIND_VOICE_INTERACTION,
+            found by the system through the VoiceInteractionService action, and
+            described by res/xml/voice_interaction.xml.
+        -->
+        <service
+            android:name=".SpikeVoiceService"
+            android:exported="true"
+            android:label="Maia assist spike"
+            android:permission="android.permission.BIND_VOICE_INTERACTION">
+            <intent-filter>
+                <action android:name="android.service.voice.VoiceInteractionService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.voice_interaction"
+                android:resource="@xml/voice_interaction" />
+        </service>
+
+        <!--
+            Named by voice_interaction.xml as the sessionService. Exported so
+            the system can bind it, and reachable by nothing else because of
+            the same signature guard.
+        -->
+        <service
+            android:name=".SpikeSessionService"
+            android:exported="true"
+            android:permission="android.permission.BIND_VOICE_INTERACTION" />
+
+        <!--
+            The recognition stub, section 1.2. Unlike the two above, this one
+            is reachable by any app on the phone through SpeechRecognizer,
+            which is exactly what G7 is about. It answers every request with an
+            error and never opens the microphone.
+        -->
+        <service
+            android:name=".SpikeRecognitionService"
+            android:exported="true"
+            android:label="Maia assist spike recogniser">
+            <intent-filter>
+                <action android:name="android.speech.RecognitionService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.speech"
+                android:resource="@xml/recognition_service" />
+        </service>
+
+        <!--
+            R7 (section 11): can a tile tap on a locked phone make the
+            in-process voice service show a session? The tile does nothing else.
+        -->
+        <service
+            android:name=".SpikeTileService"
+            android:exported="true"
+            android:icon="@android:drawable/ic_btn_speak_now"
+            android:label="Maia spike"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+    </application>
+</manifest>

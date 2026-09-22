@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Maia</string>
+    <!-- Shown under the tile in the Quick Settings editor, where the space is
+         narrow enough that anything longer is truncated. -->
+    <string name="tile_label">Maia</string>
+</resources>

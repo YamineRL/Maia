@@ -1,0 +1,3 @@
+<resources>
+    <style name="Theme.MaiaTunnel" parent="android:Theme.Material.NoActionBar" />
+</resources>

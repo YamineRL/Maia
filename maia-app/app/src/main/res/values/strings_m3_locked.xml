@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The locked screens, M3 brief section 13 row 8.
+
+  Every id and every word here is verbatim from docs/M3-copy.md, which the
+  design seat owns; nothing in this file was written by engineering. The
+  notification half of that document (its eleven ids, section 8) already lives
+  in strings_m3.xml and is not repeated here, because two definitions of one id
+  is a build failure and the first one is not this seat's to move.
+
+  It is its own file for the same reason strings_m3.xml and strings_assist.xml
+  are: strings.xml belongs to the M2 session, and neither team edits the
+  other's file.
+
+  Two things that look like omissions and are not:
+
+  1. There is no m3_notif_public_title plurals resource. Decision U2 as the
+     design seat amended it (docs/M3-copy.md section 9 item 1) takes the
+     countless form, which is already in strings_m3.xml. A count on a lock
+     screen is an activity log for a stranger.
+  2. The before-first-unlock strings may never be rendered. Per G9 the system
+     does not start Maia's service before the first unlock, so the screen is
+     written and unreachable rather than deleted: docs/M3-copy.md section 4's
+     caveat, taken as written.
+-->
+<resources>
+
+    <!-- ============================================================ shared
+         Both locked screens that offer a way forward use the same two labels,
+         so TalkBack hears the same two words in the same place everywhere. -->
+    <string name="m3_locked_unlock_action">Unlock</string>
+    <string name="m3_locked_discard_action">Discard</string>
+    <string name="m3_locked_open_app_action">Unlock and open Maia</string>
+
+    <!-- Where the visible label is not sufficient on its own. Discard has no
+         undo on a locked screen, so a screen reader user is told what it costs
+         before the press. -->
+    <string name="m3_locked_unlock_action_cd_queued">Unlock. The card for this sentence opens after you unlock.</string>
+    <string name="m3_locked_unlock_action_cd_readback">Unlock. Maia answers after you unlock.</string>
+    <string name="m3_locked_discard_action_cd">Discard. Nothing is written and the words are forgotten.</string>
+    <string name="m3_locked_open_app_action_cd">Unlock and open Maia. Maia opens on the screen that finishes this.</string>
+
+    <!-- Every locked fault says the same thing first: nothing was recorded.
+         Not ERROR, not FAILED. The user's question is whether their sentence
+         is somewhere, and this answers that before any explanation. -->
+    <string name="m3_fault_label_nothing_recorded">NOTHING RECORDED</string>
+
+    <!-- ============================================================ queued -->
+    <string name="m3_locked_queued_title">Kept until you unlock</string>
+    <string name="m3_locked_queued_body">Nothing has been written. The card opens when you unlock, and you can change it there.</string>
+    <string name="m3_locked_queued_transcript_label">YOU SAID</string>
+    <string name="m3_locked_queued_parsed_label">KEPT AS</string>
+
+    <!-- %1$s is the draft title; %2$s the when text in its long spoken form,
+         never the mono string on screen, which TalkBack reads as digits. -->
+    <string name="m3_locked_queued_transcript_cd">You said: %1$s</string>
+    <string name="m3_locked_queued_parsed_cd">Kept as: %1$s, %2$s</string>
+
+    <!-- ====================================================== read-back
+         Byte-identical whether the day is empty or full: a refusal that
+         shortens on a free day is itself a disclosure. "Does not", not
+         "cannot": Maia is able to read the provider here and declines to. -->
+    <string name="m3_locked_readback_title">Unlock to see your day</string>
+    <string name="m3_locked_readback_body">Maia does not read your calendar out while the phone is locked. Your question is kept.</string>
+
+    <!-- =============================================== before first unlock -->
+    <string name="m3_locked_before_unlock_title">Unlock the phone once first</string>
+    <string name="m3_locked_before_unlock_body">After a restart, Maia cannot reach anything it needs until the phone has been unlocked once.</string>
+    <string name="m3_locked_before_unlock_note">The phone restarts itself when it has been idle for a while.</string>
+    <string name="m3_locked_before_unlock_cd">Nothing recorded. Unlock the phone once first. After a restart, Maia cannot reach anything it needs until the phone has been unlocked once. The phone restarts itself when it has been idle for a while.</string>
+
+    <!-- ======================================================== microphone -->
+    <string name="m3_locked_no_mic_title">Open Maia to allow the microphone</string>
+    <string name="m3_locked_no_mic_body">Android will not ask for the microphone from a lock screen. Maia asks the next time you open it.</string>
+    <string name="m3_locked_no_mic_cd">Nothing recorded. Open Maia to allow the microphone. Android will not ask for the microphone from a lock screen. Maia asks the next time you open it.</string>
+
+    <!-- ========================================================= first run -->
+    <string name="m3_locked_first_run_title">Open Maia once to finish setting up</string>
+    <string name="m3_locked_first_run_body">The speech model has not been downloaded yet. It is about 70 MB, and Maia does not start it from the lock screen.</string>
+    <string name="m3_locked_first_run_cd">Nothing recorded. Open Maia once to finish setting up. The speech model has not been downloaded yet. It is about 70 MB, and Maia does not start it from the lock screen.</string>
+
+    <!-- ======================================================== D4, on the card
+         Unlocked. A card is on screen and a new invocation arrives; the card
+         stays and the invocation is refused. -->
+    <string name="m3_card_open_fault_body">Finish or discard the card on screen first.</string>
+    <string name="m3_card_open_fault_cd">Nothing recorded. Finish or discard the card on screen first.</string>
+
+    <!-- The day-changed note, on the card after unlock and never on the locked
+         screen. %1$s is the mono time in the first, a day and then a time in
+         the second, for a draft that survived more than one midnight. -->
+    <string name="m3_card_heard_yesterday_note">Said yesterday at %1$s</string>
+    <string name="m3_card_heard_earlier_note">Said %1$s at %2$s</string>
+    <string name="m3_card_day_shifted_reason">Dated from when you said it, not from now.</string>
+    <string name="m3_card_day_shifted_cd">%1$s. Dated from when you said it, not from now.</string>
+
+    <!-- ================================================== the sixth capture
+         The count is a number of unreviewed sentences and never a word of any
+         of them. "One" is spelled out because it reads as prose at that
+         length; the other case uses the numeral because the eye counts faster
+         than it reads. -->
+    <plurals name="m3_locked_queue_full_body">
+        <item quantity="one">One draft is already waiting. Unlock to go through it.</item>
+        <item quantity="other">%1$d drafts are already waiting. Unlock to go through them.</item>
+    </plurals>
+    <plurals name="m3_locked_queue_full_cd">
+        <item quantity="one">Nothing recorded. One draft is already waiting. Unlock to go through it.</item>
+        <item quantity="other">Nothing recorded. %1$d drafts are already waiting. Unlock to go through them.</item>
+    </plurals>
+
+</resources>

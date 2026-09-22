@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The assistant role's declaration. Brief section 1.1.
+
+    Every attribute here is load-bearing, and two of them are load-bearing in a
+    way that fails silently if they are wrong. From docs/research/R1.md, AOSP
+    branch android16-release, read 2026-09-13:
+
+    - recognitionService is mandatory. VoiceInteractionServiceInfo refuses the
+      service outright with "No recognitionService specified", and the role
+      observer in VoiceInteractionManagerService writes an empty string into
+      Settings.Secure.ASSISTANT and VOICE_INTERACTION_SERVICE when it is
+      missing. The app then holds the role, the picker shows it selected, and
+      no gesture ever arrives.
+
+    - supportsAssist must be true. The role observer skips any interactor
+      service whose getSupportsAssist() is false and falls back to looking for
+      an ACTION_ASSIST activity in the package, which would make Maia an
+      assist-activity assistant with no session at all.
+
+    supportsLaunchVoiceAssistFromKeyguard is deliberately absent rather than
+    false. Brief section 1.1: it is claimed only if step 0 finds this build's
+    keyguard exposes a voice affordance, and step 0 needs the phone.
+
+    settingsActivity points at MainActivity until Maia has settings, as the
+    brief says.
+-->
+<voice-interaction-service
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:recognitionService="dev.maia.app.assist.MaiaRecognitionService"
+    android:sessionService="dev.maia.app.assist.MaiaSessionService"
+    android:settingsActivity="dev.maia.app.MainActivity"
+    android:supportsAssist="true" />

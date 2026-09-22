@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    M3 brief section 1.1.
+
+    supportsLaunchVoiceAssistFromKeyguard is deliberately absent. The brief
+    says it is claimed only after step 0 shows this build exposes a keyguard
+    voice affordance at all, and a spike that claims it would make G4 unreadable:
+    a session drawn over the keyguard would no longer tell us whether the role
+    alone is enough.
+-->
+<voice-interaction-service
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:sessionService="dev.maia.spike.assist.SpikeSessionService"
+    android:recognitionService="dev.maia.spike.assist.SpikeRecognitionService"
+    android:settingsActivity="dev.maia.spike.assist.MainActivity"
+    android:supportsAssist="true" />

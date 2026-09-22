@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Strings for the assistant role and the launcher shortcuts. A separate file
+    from strings.xml because that one belongs to another seat's work in flight.
+
+    docs/M3-copy.md, which the design seat owns, covers the locked screens and
+    does not cover the shortcut labels, so these two are placeholders written
+    by the android seat and are the design seat's to replace. The constraint
+    worth carrying: a short label is truncated at roughly ten characters in
+    most launchers' long-press menu, and the long label is what a pinned
+    shortcut shows under its icon on a home screen.
+-->
+<resources>
+    <!-- Long-press menu on the launcher icon. Held to one word plus one noun,
+         because the menu shows it beside the app's own name. -->
+    <string name="shortcut_new_event_short">New event</string>
+    <!-- Under a pinned icon on the home screen, where the app name is not
+         shown, so this says which app as well as which door. -->
+    <string name="shortcut_new_event_long">Maia: new event</string>
+    <!-- M4 row 9. Placeholders on the same rules as the two above, the
+         design seat's to replace. -->
+    <string name="shortcut_quick_note_short">Quick note</string>
+    <string name="shortcut_quick_note_long">Maia: quick note</string>
+</resources>

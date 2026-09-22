@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  M3's own strings, kept out of strings.xml because the M2 session owns that
+  file and was offline when this landed. Every id and every word here is
+  verbatim from docs/M3-copy.md section 8; nothing in this file was written by
+  engineering.
+
+  The public title is the countless form (docs/M3-copy.md section 9 item 1,
+  adopted as decision U2): "A draft is waiting", never "3 drafts". A count on a
+  lock screen is an activity log for a stranger and buys the owner nothing,
+  because the action is identical at one draft and at five.
+-->
+<resources>
+
+    <!-- The channel, as it reads in system Settings. -->
+    <string name="m3_notif_channel_name">Drafts waiting</string>
+    <string name="m3_notif_channel_description">One notification when Maia keeps a sentence you said while the phone was locked. The lock screen says only that a draft is waiting, never how many and never the words.</string>
+
+    <!--
+      The private version, rendered only on an unlocked screen. The content
+      title of a single draft is the draft's own title, passed straight
+      through with no resource wrapping it.
+    -->
+    <string name="m3_notif_private_body">%1$s. Nothing is written yet.</string>
+    <plurals name="m3_notif_private_title_many">
+        <item quantity="one">One draft to review</item>
+        <item quantity="other">%1$d drafts to review</item>
+    </plurals>
+    <string name="m3_notif_private_body_many">The oldest is %1$s. Nothing is written yet.</string>
+
+    <!-- The public version, on the lock screen. No body, no subtext, no time, no actions. -->
+    <string name="m3_notif_public_title_countless">A draft is waiting</string>
+
+    <!--
+      Asked the first time a queued draft is reviewed after an unlock, when the
+      reason has just been demonstrated. Never on a locked screen.
+    -->
+    <string name="m3_notif_permission_title">Let Maia tell you a draft is waiting</string>
+    <string name="m3_notif_permission_body">You just came back to this one by unlocking. A notification brings you back when you do not. The lock screen says only that a draft is waiting, never how many and never the words.</string>
+    <string name="m3_notif_permission_allow">Allow notifications</string>
+    <string name="m3_notif_permission_not_now">Not now</string>
+
+</resources>

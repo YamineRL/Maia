@@ -1,0 +1,325 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!--
+        Normal permission, granted at install, never prompted. Without it every
+        vibrate() throws SecurityException, which the haptics code swallows, so
+        the commit and fault patterns would silently never play.
+    -->
+    <uses-permission android:name="android.permission.VIBRATE" />
+
+    <!--
+        Runtime permission from API 33, asked for the first time a queued draft
+        is reviewed after unlock and never from a lock screen. Declared here so
+        that DraftNotifier.permitted() can be true at all; the request flow is
+        the notifier's, not this seat's (M3 rows 4 and 5b).
+    -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!--
+        The agent run service. FOREGROUND_SERVICE is a normal permission and
+        FOREGROUND_SERVICE_DATA_SYNC is its API 34 companion: from that version
+        a foreground service must hold the permission matching the type it
+        declares, or startForeground throws. Both are granted at install and
+        neither is ever prompted for.
+
+        dataSync and not shortService: shortService is capped at three minutes
+        and docs/M8-copy.md section 1.4 states that a four-minute run is a
+        supported case. dataSync is also the truthful description: the service
+        exists so a running job's output keeps arriving over the network while
+        the screen is off.
+    -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+
+    <!--
+        INTERNET has two destinations and this is the whole list.
+
+        One: the agent. M8 PRD section 10: Maia reaches one machine, the
+        user's own, over a tailcat tunnel whose address embeds a pre-shared
+        key, and the only thing that crosses it is text the user dictated and
+        text the agent wrote back.
+
+        Two: huggingface.co, for the recogniser and the rescorer that
+        :core-audio fetches on first run. See ModelStore and OfflineModelStore,
+        driven by EngineHolder, and docs/PRD.md section 14, whose INTERNET row
+        already says so. It is a download of model weights and it sends nothing up.
+
+        This line is documentation rather than the grant: :core-audio has
+        declared INTERNET since M0 and it merges in from there, so removing it
+        here would not remove the permission. It is written out in the app
+        manifest because this is the file somebody reads to find out what the
+        app can reach.
+
+        No audio ever leaves the phone on either road. The recogniser and the
+        endpointer are on device and stay there, which is the whole premise and
+        is not weakened by either destination.
+
+        ACCESS_NETWORK_STATE is read-only and is needed for one fact: the name
+        and gateway of the active default route, which the Go side cannot read
+        for itself because Android blocks netlink route dumps for apps. See
+        NetFacts.
+    -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+    <!--
+        M9. Normal permission, granted at install, never prompted. The
+        standard AlarmClock.ACTION_SET_TIMER and ACTION_SET_ALARM intents
+        refuse to resolve without it: it is the permission those public
+        contracts are declared behind, and it buys nothing else. Maia still
+        never sets an alarm itself; the intent opens the user's clock app
+        with the values filled in.
+    -->
+    <uses-permission android:name="com.android.alarm.permission.SET_ALARM" />
+
+    <!--
+        M9, declared so the torch can exist at all and asked for at first use
+        with a one-line explanation, never at launch. CameraManager.setTorchMode
+        is behind the dangerous CAMERA grant, and a manifest that does not
+        declare it can never hold it. Without the grant the answer surface
+        says the torch needs it and changes nothing; there is no silent
+        fallback because there is no other road to the flash.
+
+        The camera permission covers the camera, but the only call made is
+        setTorchMode: no preview, no capture, no frames. The uses-feature
+        line below says a flash is nice to have rather than required, so a
+        phone without one can still install Maia.
+    -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature
+        android:name="android.hardware.camera.flash"
+        android:required="false" />
+
+    <!--
+        M9, optional and asked at first use. Resolving "call mum" or "text
+        Sam" to a number goes through the contacts provider, which is behind
+        the dangerous READ_CONTACTS grant. Without it the name stays on the
+        preview with the explanation and the dial or compose screen still
+        opens empty handed; the grant buys exactly the name to number step
+        and nothing else is read.
+    -->
+    <uses-permission android:name="android.permission.READ_CONTACTS" />
+    <application
+        android:allowBackup="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.Maia">
+
+        <!--
+            LiteRT-LM's GPU backend links the vendor OpenCL stack when that
+            backend is tried. The Tensor NPU path (the point of the local
+            model) links nothing here; these exist so a fallback backend is
+            not refused before it starts. Both optional: a phone without
+            them simply never gets the GPU road.
+        -->
+        <uses-native-library
+            android:name="libOpenCL.so"
+            android:required="false" />
+        <uses-native-library
+            android:name="libvndksupport.so"
+            android:required="false" />
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:windowSoftInputMode="adjustResize"
+            android:theme="@style/Theme.Maia">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <!--
+                Static launcher shortcuts, M3 brief section 5. The meta-data has
+                to hang from an exported launcher Activity, which is what
+                ShortcutParser checks; the intent inside the shortcut may point
+                anywhere in the package, which is why it points at the
+                non-exported InvokeActivity. See docs/research/R5.md.
+            -->
+            <meta-data
+                android:name="android.app.shortcuts"
+                android:resource="@xml/shortcuts" />
+        </activity>
+
+        <!--
+            Settings, which is one row: the notes folder (M4 copy section 5, row 7).
+            Not exported: MainActivity opens it, and nothing outside Maia has a
+            reason to.
+        -->
+        <activity
+            android:name=".settings.SettingsActivity"
+            android:windowSoftInputMode="adjustResize"
+            android:exported="false"
+            android:theme="@style/Theme.Maia" />
+
+        <!--
+            The trampoline every non-assistant door goes through. Not exported:
+            item I4 closes M1's exposure, where any installed app could fire
+            MainActivity's EXTRA_START_LISTENING and switch on the microphone
+            (privacy item V4). A static shortcut may still target it, per
+            docs/research/R5.md.
+
+            Translucent and with no history, because it renders nothing and is
+            finished inside onCreate. Its own task affinity is empty so that it
+            never becomes the root of Maia's task in recents.
+        -->
+        <activity
+            android:name=".assist.InvokeActivity"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:noHistory="true"
+            android:taskAffinity=""
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+
+        <!--
+            The keyguard prompt, M3 row 7. KeyguardManager.requestDismissKeyguard
+            takes an Activity and nothing else, and a voice interaction session
+            has only a Dialog, so Effect.RequestUnlock is asked for from here.
+            Same shape as the trampoline above and not exported for the same
+            reason: only Maia's own session window starts it.
+
+            showWhenLocked and turnScreenOn are set in code rather than here,
+            because both attributes are API 27 and minSdk is 26. See
+            UnlockActivity.
+        -->
+        <activity
+            android:name=".assist.UnlockActivity"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:noHistory="true"
+            android:taskAffinity=""
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+
+        <!--
+            The assistant role. BIND_VOICE_INTERACTION is a signature permission
+            held by the system, declared here as the guard on both voice
+            services and never requested by Maia with uses-permission: it is
+            what stops anything but the system server binding them. Brief
+            section 7.
+
+            directBootAware, and only here. G9 on the Pixel: after a reboot the
+            role was still held and Settings.Secure.assistant still named the
+            spike, but voice_interaction_service was empty, before the first
+            unlock and still empty after it, with "no auto selectable voice
+            recognition services found for user 0" logged at both moments. The
+            likely cause, stated in spike/assistant-role/README.md and not
+            verified: nothing in that manifest was direct boot aware, so at boot
+            the system could not resolve the holder's VoiceInteractionService and
+            cleared the setting, and nothing wrote it back afterwards because
+            only a change of role holder writes it. A device-encryption-aware
+            service can be resolved and bound before the unlock, so the setting
+            is never cleared.
+
+            The flag stops at this service on purpose. It makes the component
+            resolvable and bindable while the user is locked, and everything this
+            class does in that state is device encrypted: it touches no
+            SharedPreferences, no files and no models, and Warming.at returns
+            without loading anything until the user is unlocked. The session
+            service below stays credential encrypted, so no session can be
+            created before the first unlock, which is brief section 4.4's rule
+            ("the gesture does nothing until the phone has been unlocked once")
+            enforced by the platform rather than by our own check.
+        -->
+        <service
+            android:name=".assist.MaiaVoiceService"
+            android:directBootAware="true"
+            android:exported="true"
+            android:permission="android.permission.BIND_VOICE_INTERACTION">
+            <intent-filter>
+                <action android:name="android.service.voice.VoiceInteractionService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.voice_interaction"
+                android:resource="@xml/voice_interaction" />
+        </service>
+
+        <!--
+            Bound by the system server by explicit component, so it carries no
+            intent filter and is reachable only through the same signature
+            guard.
+
+            Deliberately not directBootAware, unlike the interactor above. A
+            session builds the whole flow, which reads credential-encrypted
+            storage (the model store under filesDir, the calendar target's
+            SharedPreferences), and none of that exists for a locked user. Before
+            the first unlock this bind fails and no session is created, which is
+            the intended answer to the gesture at that moment.
+        -->
+        <service
+            android:name=".assist.MaiaSessionService"
+            android:exported="true"
+            android:permission="android.permission.BIND_VOICE_INTERACTION" />
+
+        <!--
+            The recognition stub. This one is genuinely reachable by any app on
+            the phone, through SpeechRecognizer, and there is no permission that
+            could guard it without making it useless as the declaration R1 says
+            the role requires. It answers every request with
+            ERROR_RECOGNIZER_BUSY and never opens the microphone; the decision
+            is the pure function in RecognitionPolicy, tested by criterion J12.
+
+            What makes it reachable is the exported intent filter, not the role
+            and, on the evidence so far, not the system default either. G7 on the
+            Pixel: the spike shipped exactly one RecognitionService on a phone
+            with no other, and Settings.Secure.voice_recognition_service was null
+            before the role, null after it and still null after a reboot and the
+            unlock, with "no auto selectable voice recognition services found for
+            user 0" logged each time. R3's mechanism half is confirmed by that
+            reading (the role does not write the setting). Its end-state half,
+            that the framework picks the only available service, is not what this
+            build did, and why is not established: an app-installed recogniser
+            may not count as available at all here. So the honest claim is the
+            narrow one. Any app can reach this service by naming it explicitly;
+            an app that asks for the system recogniser reaches nothing, because
+            there is no system recogniser on this phone. Item I2, corrected
+            twice.
+        -->
+        <service
+            android:name=".assist.MaiaRecognitionService"
+            android:exported="true"
+            android:label="@string/app_name">
+            <intent-filter>
+                <action android:name="android.speech.RecognitionService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.speech"
+                android:resource="@xml/speech_recognition" />
+        </service>
+
+        <!--
+            The foreground service that holds the process up for the length of
+            an agent turn. Not exported and carrying no intent filter: it is
+            started by RunService.follow from this process and there is nothing
+            another app could usefully say to it.
+
+            Not directBootAware. A turn cannot begin before the first unlock,
+            because nothing that starts one can: the session service above is
+            credential encrypted for the same reason.
+
+            The type is repeated in code at startForeground, which API 34
+            requires to match this attribute exactly.
+        -->
+        <service
+            android:name=".agent.RunService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
+
+        <!--
+            The Quick Settings tile. BIND_QUICK_SETTINGS_TILE is what stops any
+            app other than SystemUI binding this service, and the QS_TILE
+            action is how SystemUI finds it in the first place.
+        -->
+        <service
+            android:name=".tile.MaiaTileService"
+            android:exported="true"
+            android:icon="@drawable/ic_tile_maia"
+            android:label="@string/tile_label"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+    </application>
+</manifest>

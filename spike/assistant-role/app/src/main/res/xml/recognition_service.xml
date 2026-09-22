@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The android.speech meta-data a RecognitionService must carry. The settings
+    activity points at MainActivity because the spike has no settings and the
+    attribute is required to be a real component.
+-->
+<recognition-service
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:settingsActivity="dev.maia.spike.assist.MainActivity" />

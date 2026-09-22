@@ -1,0 +1,81 @@
+# Seed corpus. One utterance per line, tab separated.
+#
+# WHAT THIS IS NOT. PRD section 7 calls for two hundred utterances recorded by
+# the author speaking. This is not that. Every line below was typed, by the
+# person who also wrote the grammar, in the shape M0 is known to emit. It
+# proves the grammar reads the sentences its author imagined. It proves
+# nothing at all about whether real speech arrives in that shape, because no
+# speech was involved. The recorded corpus is a separate, unstarted, shipping
+# deliverable and this file is not a substitute for it.
+#
+# The clock for every row is Saturday 12 September 2026, 11:30, Europe/Zurich.
+#
+# Columns:
+#   1 utterance, in M0 output shape: lowercase, unpunctuated, numbers as words
+#   2 intent:    event | note | agenda | availability | unparsed
+#   3 text:      expected title or note body, or - where the intent has none
+#   4 start:     expected local start, ISO, or - where none is expected
+#   5 minutes:   expected duration in minutes, or - where none is expected
+#   6 allday:    y or n, or - where it does not apply
+utterance	intent	text	start	minutes	allday
+schedule lunch with sam tomorrow at noon	event	lunch with sam	2026-09-13T12:00	60	n
+book a haircut thursday at three p m	event	haircut	2026-09-17T15:00	60	n
+add dentist monday at nine a m	event	dentist	2026-09-14T09:00	60	n
+schedule standup tomorrow at nine a m for thirty minutes	event	standup	2026-09-13T09:00	30	n
+block out two hours for deep work tomorrow	event	deep work	2026-09-13T11:30	120	n
+create a meeting with the bank next thursday at ten a m	event	meeting with the bank	2026-09-17T10:00	60	n
+put gym in for tomorrow morning	event	gym	2026-09-13T09:00	60	n
+schedule a call with mo friday at four p m	event	call with mo	2026-09-18T16:00	60	n
+book the meeting room tomorrow at two p m for one hour	event	meeting room	2026-09-13T14:00	60	n
+schedule coffee saturday at eleven a m	event	coffee	2026-09-19T11:00	60	n
+add a physio appointment the third of march	event	physio appointment	2027-03-03T00:00	1440	y
+schedule review in two weeks	event	review	2026-09-26T00:00	1440	y
+book flights a week from friday	event	flights	2026-09-25T00:00	1440	y
+schedule the quarterly readout on the twenty first	event	quarterly readout	2026-09-21T00:00	1440	y
+set up a one to one with priya wednesday at one p m	event	one to one with priya	2026-09-16T13:00	60	n
+dentist thursday at three p m	event	dentist	2026-09-17T15:00	60	n
+lunch with sam tomorrow	event	lunch with sam	2026-09-13T00:00	1440	y
+standup every morning	event	standup every	2026-09-13T09:00	60	n
+dinner with the parents sunday at seven p m	event	dinner with the parents	2026-09-13T19:00	60	n
+call with the accountant tuesday at eleven	event	call with the accountant	2026-09-15T11:00	60	n
+school run tomorrow at eight fifteen a m	event	school run	2026-09-13T08:15	60	n
+team retro friday afternoon	event	team retro	2026-09-18T14:00	60	n
+pick up the car monday morning	event	pick up the car	2026-09-14T09:00	60	n
+board meeting the fifteenth of october	event	board meeting	2026-10-15T00:00	1440	y
+flu jab wednesday at quarter past nine	event	flu jab	2026-09-16T09:15	60	n
+call mum tonight	event	call mum	2026-09-12T19:00	60	n
+workshop thursday at nine a m until five p m	event	workshop	2026-09-17T09:00	480	n
+yoga tomorrow at half past six	event	yoga	2026-09-13T18:30	60	n
+stocktake the thirty first of december	event	stocktake	2026-12-31T00:00	1440	y
+drinks with the team friday at half past five	event	drinks with the team	2026-09-18T17:30	60	n
+remind me to call the plumber	note	call the plumber	-	-	-
+note buy milk	note	buy milk	-	-	-
+remember to renew the passport	note	renew the passport	-	-	-
+make a note to chase the invoice	note	chase the invoice	-	-	-
+remind me to take the bins out tomorrow morning	note	take the bins out	2026-09-13T09:00	-	-
+note the wifi password is on the router	note	the wifi password is on the router	-	-	-
+remind me to book the mot in two weeks	note	book the mot	2026-09-26T00:00	-	-
+jot down that sam prefers mornings	note	sam prefers mornings	-	-	-
+write a note about the leaking tap	note	the leaking tap	-	-	-
+remind me to water the plants friday	note	water the plants	2026-09-18T00:00	-	-
+what do i have tomorrow	agenda	-	2026-09-13T00:00	1440	-
+whats on today	agenda	-	2026-09-12T00:00	1440	-
+show me my agenda	agenda	-	2026-09-12T00:00	1440	-
+what have i got thursday	agenda	-	2026-09-17T00:00	1440	-
+read me my schedule for tomorrow	agenda	-	2026-09-13T00:00	1440	-
+whats my day look like	agenda	-	2026-09-12T00:00	1440	-
+tell me my calendar for monday	agenda	-	2026-09-14T00:00	1440	-
+agenda for friday	agenda	-	2026-09-18T00:00	1440	-
+what do i have on next thursday	agenda	-	2026-09-17T00:00	1440	-
+whats up this weekend	agenda	-	2026-09-12T00:00	1440	-
+am i free thursday afternoon	availability	-	2026-09-17T12:00	360	-
+am i busy tomorrow morning	availability	-	2026-09-13T09:00	180	-
+do i have anything friday	availability	-	2026-09-18T00:00	1440	-
+am i available monday	availability	-	2026-09-14T00:00	1440	-
+will i be free tomorrow evening	availability	-	2026-09-13T18:00	240	-
+is there anything on tomorrow	availability	-	2026-09-13T00:00	1440	-
+am i around thursday morning	availability	-	2026-09-17T09:00	180	-
+do i have much on this weekend	availability	-	2026-09-12T00:00	1440	-
+tomorrow at three p m	unparsed	tomorrow at three p m	2026-09-13T15:00	60	n
+thursday	unparsed	thursday	2026-09-17T00:00	1440	y
+at nine a m	unparsed	at nine a m	2026-09-13T09:00	60	n

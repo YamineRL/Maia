@@ -1,0 +1,513 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The agent feature, M8. Every id and every word here is verbatim from
+  docs/M8-copy.md, which the design seat owns; nothing in this file was
+  written by engineering, and M8CopyTest proves that by reading both files
+  rather than by anyone rereading them.
+
+  Its own file for the same reason strings_m3_locked.xml is: strings.xml
+  belongs to the M2 session and no seat edits another's file.
+
+  Two things that look like omissions and are not:
+
+  1. m3_locked_queued_transcript_label, m3_locked_queued_title,
+     m3_locked_unlock_action and m3_locked_discard_action are reused verbatim
+     from M3 and are deliberately not redefined. Two definitions of one id is
+     a build failure, and the first one is not this seat's to move.
+  2. m8_ambiguous_title is a plurals resource with an explicit "two" case,
+     because "Two projects match" reads as prose at that length while "2"
+     reads as a count in a report. Android has no "two" quantity for English,
+     so the "two" case is carried as its own string and chosen in code; the
+     plurals resource keeps the "other" form. Both are checked against the
+     copy.
+
+  The whole of section 2 is enforced elsewhere and not here: agent output is
+  read, never spoken. Nothing in the spoken block below has a %s in it. The
+  only substitutions any spoken string takes are project numbers.
+-->
+<resources>
+    <!-- ============================================== the run screen
+         `docs/M8-copy.md` section 1. Two type treatments and no more, and the end
+         of a turn is marked rather than implied: END OF REPLY on a solid hairline,
+         STOPPED HERE on a dashed one, so the two ends are told apart with no
+         colour and no reading. -->
+    <string name="m8_run_jump_to_latest">Jump to the latest</string>
+    <string name="m8_run_end_marker_done">END OF REPLY</string>
+    <string name="m8_run_end_marker_stopped">YOU STOPPED THIS</string>
+    <string name="m8_run_end_marker_cut">STOPPED HERE</string>
+    <string name="m8_run_tool_line">%1$s %2$s</string>
+    <string name="m8_run_tool_line_bare">%1$s</string>
+    <string name="m8_run_tool_repeat">%1$s x%2$d</string>
+    <string name="m8_run_nothing_yet">Nothing back yet. The first words can take a while.</string>
+    <string name="m8_run_plan">%1$d of %2$d done</string>
+    <string name="m8_run_earlier_turn">%1$s  %2$s</string>
+    <string name="m8_run_earlier_turn_cd">Earlier, %1$s. You said: %2$s. Double tap to show the reply.</string>
+    <string name="m8_run_stop_action">Stop</string>
+    <string name="m8_run_stop_cd">Stop. The agent stops where it is. Anything it has already changed stays changed.</string>
+    <!-- Section 5.12. The caption goes under YOU STOPPED THIS, and under YOU REFUSED
+         THIS as well (section 5.17), which is the same ending by the same hand and
+         takes the same sentence rather than a second copy of it. m8_run_stop_failed
+         takes one of section 5.4's four reason sentences and leaves Stop exactly
+         where it is: the run carries on, so nothing marks the reply. -->
+    <string name="m8_run_stopped_note">Anything it had already changed stays changed.</string>
+    <string name="m8_run_stop_failed">Stop did not go through. %1$s</string>
+    <string name="m8_run_ask_again_action">Ask again</string>
+    <string name="m8_run_left_behind">%1$d keeps running. You get a notification when it finishes.</string>
+    <string name="m8_run_refetching">Fetching the reply.</string>
+    <string name="m8_run_refetch_failed_title">The reply is not here any more.</string>
+    <string name="m8_run_refetch_failed_body">Maia holds a reply only while it is open, and this one has gone. It is still in the session on your machine.</string>
+
+    <!-- ==================================== the spoken confirmations
+         Section 2.4, and this list is closed. These thirteen are every sentence Maia is
+         allowed to say in this feature, they are all under eight words, and the only
+         thing that ever fills one is a project number. Nothing an agent produced
+         reaches any of them: `AgentAck` is an enum with no String on it, which is
+         what makes that structural rather than a promise. The eleventh joined on
+         2026-09-20: an agent sentence can arrive before the phone has ever been
+         paired, and saying nothing at all in that case is the one failure the user
+         cannot tell apart from Maia not having heard them. Its row lives in section
+         5.15 beside the pairing screen, not in 2.4's table, because an id with two
+         rows is an id the document can disagree with itself about. -->
+    <string name="m8_spoken_sent">Sent to %1$d.</string>
+    <string name="m8_spoken_sent_moved">Sent to %1$d. %2$d is still running.</string>
+    <string name="m8_spoken_queued">%1$d is busy. Queued.</string>
+    <string name="m8_spoken_stopped">Stopped.</string>
+    <string name="m8_spoken_which_project">Which project?</string>
+    <string name="m8_spoken_which_one">Which one?</string>
+    <string name="m8_spoken_tunnel_off">The tunnel is off.</string>
+    <string name="m8_spoken_no_answer">Your machine did not answer.</string>
+    <string name="m8_spoken_refused">The passphrase was refused.</string>
+    <string name="m8_spoken_no_project">There is no project %1$d.</string>
+    <string name="m8_spoken_not_set_up">Agents are not set up yet.</string>
+    <!-- The twelfth and thirteenth, 2026-09-20, for a spoken stop that did not land.
+         Their rows live in section 5.12 beside the stop they belong to. The second
+         says "ended" and not "finished": Maia observed only that there was nothing
+         left to interrupt, and "ended" covers both ways that happens. -->
+    <string name="m8_spoken_stop_not_sent">Stop did not go through.</string>
+    <string name="m8_spoken_stop_too_late">That turn had already ended.</string>
+
+    <!-- ===================================================== pairing
+         Section 5.15. Three things reach the machine and only two of them are
+         entered here: the address and the passphrase are credentials the phone
+         stores, and the third is this phone\'s own key, which has to be added at
+         the other end because no amount of typing on a phone can put it there.
+
+         The two captions are deliberately the same sentence written in opposite
+         directions. The tailcat address looks like an address and is a key, so its
+         caption says so before the user pastes it into a chat window. The phone key
+         looks like a secret and is not one, so its caption says that too, because a
+         user who treats it as a secret will not put it on the allow list and
+         nothing will ever connect.
+
+         The passphrase has no string of its own here on purpose: it is entered
+         through `m8_auth_entry_label` and `m8_auth_entry_caption`, section 5.5\'s
+         existing pair, and it is never displayed, never logged and never echoed
+         back. `m8_pair_address_stored` is what stands in for showing it: the field
+         reads empty on a return visit because the value is stored, not because it
+         was lost, and without that line an empty field is indistinguishable from a
+         failure.
+
+         Forgetting is the one thing in M8 that asks first. `m8_pair_forget_action`
+         opens a sheet carrying `m8_pair_forget_title`, `m8_pair_forget_body` and
+         the two controls in that reading order, with the destructive one the
+         quieter of the two, which is M3's `m3_locked_discard_action` rule and not
+         a slip. `m8_pair_forget_body` names the real cost, which is that the
+         address embeds a pre-shared key and has to be fetched from the machine
+         again; `AgentSecrets.clear()` leaves the node key alone, which is why the
+         last sentence says so. -->
+    <string name="m8_pair_title">Connect Maia to your machine</string>
+    <string name="m8_pair_intro">Agents run on your own computer. Maia needs three things to reach it, and the last one has to be added at that end.</string>
+    <string name="m8_pair_address_label">TAILCAT ADDRESS</string>
+    <string name="m8_pair_address_caption">This is a key, not an address. Anyone who has it can reach your machine, so paste it here and nowhere else.</string>
+    <string name="m8_pair_address_stored">Stored. Maia does not show it again.</string>
+    <string name="m8_pair_key_label">THIS PHONE\'S KEY</string>
+    <string name="m8_pair_key_caption">Safe to share. It only says which phone this is, and your machine needs it to recognise this one.</string>
+    <string name="m8_pair_key_body">Nothing will connect until this key is on the allow list in:</string>
+    <string name="m8_pair_key_path">tailcat-phone.service</string>
+    <string name="m8_pair_key_copy">Copy key</string>
+    <string name="m8_pair_key_copied">Copied.</string>
+    <string name="m8_pair_continue">Continue</string>
+    <string name="m8_pair_done">Done</string>
+    <string name="m8_pair_forget_action">Forget this machine</string>
+    <string name="m8_pair_forget_title">Forget this machine?</string>
+    <string name="m8_pair_forget_body">Maia will forget the address and the passphrase. The address is a key, not something you can type from memory, so putting this back means fetching it from your machine again. This phone\'s key stays.</string>
+    <string name="m8_pair_forget_cancel">Keep it</string>
+    <string name="m8_pair_forget_confirm">Forget it</string>
+    <string name="m8_pair_forgotten">Forgotten. Maia has no machine to reach.</string>
+    <string name="m8_pair_needed_title">Maia cannot reach your machine yet.</string>
+    <string name="m8_pair_needed_body">Agents run on your own computer, and Maia has not been told where it is. Everything else in Maia works exactly as it does offline.</string>
+    <string name="m8_pair_needed_action">Set this up</string>
+
+    <!-- =================================== the notification channels
+         Section 5.1. Two alerting channels and not one, because the two deserve
+         different importance and the user is the only person who knows which. The
+         descriptions are read in system Settings by an owner deciding whether to keep
+         them, so each carries the fact that decision needs.
+
+         Two alerting channels and not three: failed rides the runs channel with ended
+         and shares its vibration, which is section 4.5, and the runs description says
+         so in the user's own terms so the settings row is not a promise the feature
+         breaks. The third channel is IMPORTANCE_LOW and spends nothing from the
+         interruption budget, which is why it does not count against that refusal. -->
+    <string name="m8_notif_channel_runs_name">When a run ends</string>
+    <string name="m8_notif_channel_runs_description">One notification when an agent finishes, or stops without finishing. The lock screen says only which of those happened, never which project and never a word of the reply.</string>
+    <string name="m8_notif_channel_needs_you_name">An agent needs you</string>
+    <string name="m8_notif_channel_needs_you_description">One notification when an agent has stopped and is waiting for an answer from you. This is the only thing Maia will interrupt you for.</string>
+    <string name="m8_notif_channel_open_name">While a run is open</string>
+    <string name="m8_notif_channel_open_description">Android requires a notification for as long as an app is working in the background, and this is Maia\'s. It never makes a sound, it never vibrates, and it is never on the lock screen. It goes when the run does.</string>
+
+    <!-- =================================== finished, blocked, failed
+         Sections 5.2 to 5.4. Every public string names no project and no word of any
+         reply. The blocked bodies name the kind of block and never its content,
+         even on the private version: a shade is read over shoulders. -->
+    <string name="m8_notif_done_title">%1$d %2$s finished</string>
+    <string name="m8_notif_done_body">Ran for %1$s. Tap to read the reply.</string>
+    <string name="m8_notif_public_done">An agent has finished</string>
+    <string name="m8_notif_blocked_title">%1$d %2$s is waiting for you</string>
+    <string name="m8_notif_blocked_permission_body">It needs your permission to go on.</string>
+    <string name="m8_notif_blocked_question_body">It asked you something.</string>
+    <!-- The second line of the expanded permission notification, and the honest half
+         of this design: the user is offered an Allow for a thing they cannot see,
+         because rule 12 keeps the agent's own words off the shade. It says where the
+         words are and puts the two choices in the order of their risk. -->
+    <string name="m8_notif_blocked_permission_unseen">What it asked is on the run screen, not here. You can allow it without reading it, refuse it and end the run there, or open it and read it first.</string>
+    <string name="m8_notif_action_allow">Allow</string>
+    <!-- Refuse and stop, not Refuse: the third value fails this request, rejects
+         everything else pending on the same session, and the turn ends there. On a
+         locked phone the label is the only part of this the user gets to read, so it
+         carries the consequence. m8_notif_action_open, Open, was retired on
+         2026-09-20 and replaced by Answer: it named the mechanism rather than the
+         act, and it was the same word as tapping the row. -->
+    <string name="m8_notif_action_refuse">Refuse and stop</string>
+    <string name="m8_notif_action_answer">Answer</string>
+    <string name="m8_notif_action_allow_cd">Allow. The agent goes on with what it asked to do.</string>
+    <string name="m8_notif_action_refuse_cd">Refuse and stop. The agent is told no, and the run ends there rather than carrying on.</string>
+    <string name="m8_notif_action_answer_cd">Answer. The run screen opens so you can read the question and reply there.</string>
+    <string name="m8_notif_public_blocked">An agent is waiting for you</string>
+    <string name="m8_notif_failed_title">%1$d %2$s did not finish</string>
+    <string name="m8_notif_failed_body">%1$s Open to see what arrived before it stopped.</string>
+    <string name="m8_notif_public_failed">An agent did not finish</string>
+
+    <!-- The five reasons of section 5.4, one of which fills %1$s in
+         m8_notif_failed_body. Each ends in a full stop, because the body joins it to
+         its second sentence with a single space.
+
+         m8_notif_failed_reason_agent_error carries no agent text, ever: not the
+         error's message, not its first line, not its type. It is written with no
+         format argument at all so that interpolating one becomes a compile error
+         rather than a judgement call. Do not give it one. -->
+    <string name="m8_notif_failed_reason_tunnel">The tunnel went down.</string>
+    <string name="m8_notif_failed_reason_no_answer">Your machine stopped answering.</string>
+    <string name="m8_notif_failed_reason_refused">The passphrase was refused.</string>
+    <string name="m8_notif_failed_reason_lost">The connection stopped.</string>
+    <string name="m8_notif_failed_reason_agent_error">The agent stopped with an error.</string>
+
+    <!-- ================================ after the answer, and when it does not land
+         Section 5.17. The blocked notification is rewritten and never cancelled: same
+         id, same channel, setOnlyAlertOnce(true), so no rewrite here makes a second
+         sound or a second vibration. Four after states and three of them remove the
+         actions, because there is nothing left to press; only the undelivered one
+         keeps them, because trying again is the right thing to do.
+
+         The stale case is the notification that was already dead in the user's hand.
+         It takes m8_notif_blocked_gone_title and m8_notif_public_blocked_gone
+         verbatim, because the far end is not waiting in both cases and the only
+         difference is whether the user has pressed anything, and its body is written
+         for somebody who has pressed nothing. Both undelivered bodies take one of
+         section 5.4's four reason sentences, unchanged and not duplicated; no fifth
+         cause is invented here. -->
+    <string name="m8_notif_blocked_answered_title">%1$d %2$s has your answer</string>
+    <string name="m8_notif_blocked_answered_allow">You allowed it. Maia tells you when the run ends.</string>
+    <string name="m8_notif_blocked_answered_refuse">You refused it. The run ends there, and Maia tells you when it has.</string>
+    <string name="m8_notif_public_blocked_answered">An agent has your answer</string>
+    <string name="m8_notif_blocked_undelivered_title">%1$d %2$s did not get your answer</string>
+    <string name="m8_notif_blocked_undelivered_body">%1$s Open to answer on the run screen.</string>
+    <string name="m8_notif_public_blocked_undelivered">An agent did not get your answer</string>
+    <string name="m8_notif_blocked_gone_title">%1$d %2$s is not waiting any more</string>
+    <string name="m8_notif_blocked_gone_body">It was not waiting when your answer arrived. Open to see where the run got to.</string>
+    <string name="m8_notif_blocked_stale_body">You do not need to do anything. Open to see where the run got to.</string>
+    <string name="m8_notif_public_blocked_gone">An agent is not waiting any more</string>
+
+    <!-- ====================================== answering on the run screen
+         Sections 5.3 and 5.17. The two answer controls reuse m8_notif_action_allow and
+         m8_notif_action_refuse with their content descriptions, so the shade and the
+         footer are one act the user learns once; they are not given screen-specific
+         ids. The session control is drawn only when the request carries something to
+         remember, and when it is not drawn nothing marks its absence. Its caption is
+         not optional and does not collapse: a control that changes what happens to
+         requests the user has not seen yet has to say so before the press.
+
+         The note field is the user's own words going out, which is the safe direction
+         under rule 12, and nothing of the agent's comes back through it. It travels
+         inside the refusal, so it lands when the refusal lands and gets no status line
+         of its own. -->
+    <string name="m8_run_allow_session">Stop asking about this</string>
+    <string name="m8_run_allow_session_caption">Requests like this one go through without asking you, until the agent on your machine is restarted.</string>
+    <string name="m8_run_allow_session_cd">Stop asking about this. The agent is allowed this and anything like it, until it is restarted on your machine.</string>
+    <string name="m8_run_refuse_note_label">IF YOU REFUSE</string>
+    <string name="m8_run_refuse_note_hint">Not that directory, use the repo.</string>
+    <string name="m8_run_refuse_note_caption">Optional. These words go to the agent with your refusal, so the next run can start from them rather than from nothing.</string>
+    <string name="m8_run_refuse_note_cd">If you refuse, what to tell the agent. Optional. Your words go with the refusal.</string>
+    <!-- The YOU STOPPED THIS family: the word "you" separates what the user did from
+         what happened to them. YOU ALLOWED THIS sits inline with no hairline, because
+         the reply carries straight on past it. YOU REFUSED THIS closes the reply on a
+         solid hairline with m8_run_stopped_note under it, because a refusal ends the
+         turn and this is an ending Maia can account for exactly. IT STOPPED WAITING
+         serves both arrivals, the press that was too late and the request reconciled
+         away, and the two announcements below are what separates them. -->
+    <string name="m8_run_answered_allowed">YOU ALLOWED THIS</string>
+    <string name="m8_run_answered_refused">YOU REFUSED THIS</string>
+    <string name="m8_run_answered_too_late">IT STOPPED WAITING</string>
+    <string name="m8_run_answer_undelivered">Your answer did not go through. %1$s</string>
+    <string name="m8_run_too_late_announce">The agent stopped waiting. Your answer was not sent.</string>
+    <string name="m8_run_withdrawn_announce">The agent stopped waiting. There is nothing to answer.</string>
+
+    <!-- ==================================== answering a question
+         Section 5.18, rewritten on 2026-09-21 against a question.asked captured on the
+         wire. A question is not free text: a request carries a list of questions, each
+         with labelled options, and two flags. multiple says whether more than one
+         option may be chosen, custom whether an answer in the user's own words is
+         accepted at all. So the options are the control, and dictation is the second
+         way in, present only when custom is true. m8_run_answer_not_now and
+         m8_run_answer_not_now_cd were retired in the same pass: closing the microphone
+         exits nothing once the rows are on the screen.
+
+         IT ASKED marks the question in the reply flow, in body, with section 1.2's two
+         type treatments unchanged, and it marks a permission request in the same place
+         for the same reason. The header field is not rendered at all. The question, the
+         option labels and the option descriptions are all agent output: read, never
+         heard, never announced, never put in the status label, which is the live
+         region. The two announce strings say a question arrived and where the controls
+         are, and differ only in whether they mention the microphone.
+
+         CHOOSE ONE sends on the tap. CHOOSE ANY makes the rows checkable and adds Send,
+         because with more than one allowed no tap can be read as the last one.
+         Recommended is Maia's own chip: the agent appends "(Recommended)" to its label
+         and Maia strips exactly that and nothing else. Question %1$d of %2$d shows only
+         when the request carries more than one, and both numbers are counts of an
+         array.
+
+         YOUR ANSWER holds the live partial in 4b's treatment. An utterance that is
+         exactly an option label selects that option; anything else goes as free text.
+         The answer goes on the tap or when the user stops speaking, and nothing confirms
+         first (5.10's rule); YOU ANSWERED with the answers under it is the receipt.
+
+         Three ways out, two of which leave the turn running: Decide without me sends an
+         empty answer list, Drop the question rejects it, and Stop interrupts the turn
+         (m8_run_stop_action, reused). Neither marker takes a hairline, because neither
+         ends the reply. On a failure what the user chose stays on screen: Send it again
+         for a tunnel that came back, Say it again for a recogniser that got it wrong.
+         IT DID NOT TAKE THAT is not IT STOPPED WAITING: an expired question and an
+         answer that lost its way are the same answer on the wire, so the marker reports
+         the transaction rather than the agent. -->
+    <string name="m8_run_question_label">IT ASKED</string>
+    <string name="m8_run_question_announce">%1$d asked you something. What it asked is above, and the answers to choose from are at the bottom of the screen.</string>
+    <string name="m8_run_question_announce_open">%1$d asked you something. What it asked is above, the answers to choose from are at the bottom of the screen, and the microphone is open.</string>
+    <string name="m8_run_question_step">Question %1$d of %2$d</string>
+    <string name="m8_run_options_label">CHOOSE ONE</string>
+    <string name="m8_run_options_label_many">CHOOSE ANY</string>
+    <string name="m8_run_options_send">Send</string>
+    <string name="m8_run_options_send_cd">Send. What you have ticked goes to the agent as your answer.</string>
+    <string name="m8_run_option_recommended">Recommended</string>
+    <string name="m8_run_answer_label">YOUR ANSWER</string>
+    <string name="m8_run_answer_listening">The microphone is open. Say one of the answers, or say your own.</string>
+    <string name="m8_run_answered_question">YOU ANSWERED</string>
+    <string name="m8_run_question_skip">Decide without me</string>
+    <string name="m8_run_question_skip_cd">Decide without me. No answer goes, the agent is told you did not answer, and it carries on and decides for itself. Any questions after this one are left unanswered too.</string>
+    <string name="m8_run_question_dismiss">Drop the question</string>
+    <string name="m8_run_question_dismiss_cd">Drop the question. It goes off the screen, the agent is told you turned it down, and the run carries on.</string>
+    <string name="m8_run_question_skipped">YOU LET IT DECIDE</string>
+    <string name="m8_run_question_dismissed">YOU DROPPED THIS</string>
+    <string name="m8_run_answer_nothing_heard">Nothing heard. The agent is still waiting, and the answers are still there.</string>
+    <string name="m8_run_answer_send_again">Send it again</string>
+    <string name="m8_run_answer_send_again_cd">Send it again. The same answer goes, and the microphone does not open.</string>
+    <string name="m8_run_answer_say_again">Say it again</string>
+    <string name="m8_run_answer_say_again_cd">Say it again. The microphone opens and these words are replaced.</string>
+    <string name="m8_run_question_gone">IT DID NOT TAKE THAT</string>
+    <string name="m8_run_question_gone_note">The question is not there any more, or your answer did not find it. Maia cannot tell which. What you chose is still above if you want to send it again.</string>
+    <string name="m8_run_question_gone_announce">It did not take your answer. The question may not be there any more.</string>
+
+    <!-- ===================================== the ongoing notification
+         Section 5.14. The title is the project pair and nothing else, because Android
+         already draws "Maia" in the header above it. Three bodies and not one, because
+         the row stands for the whole run and Running. is a lie while the agent is
+         blocked. Its Stop action reuses m8_run_stop_action and its content description
+         reuses m8_run_project_cd; neither is redefined here. -->
+    <string name="m8_notif_open_title">%1$d %2$s</string>
+    <string name="m8_notif_open_body_working">Running. Tap to watch.</string>
+    <string name="m8_notif_open_body_queued">Waiting its turn. Tap to watch.</string>
+    <string name="m8_notif_open_body_waiting">Waiting for your answer. Tap to answer.</string>
+
+    <!-- ============================================= the durations
+         Section 5.2, the closed vocabulary that fills %1$s in m8_notif_done_body. A
+         ladder taken from the top, first match wins. Words to nine, digits from ten,
+         and the seams are chosen so no value rounds into a lie: never 0 minutes, never
+         60 minutes, never 1 hours. If the clock is unusable the body is omitted
+         entirely and the notification posts with its title alone. -->
+    <string name="m8_duration_under_a_minute">under a minute</string>
+    <string name="m8_duration_a_minute">a minute</string>
+    <string name="m8_duration_two_minutes">two minutes</string>
+    <string name="m8_duration_three_minutes">three minutes</string>
+    <string name="m8_duration_four_minutes">four minutes</string>
+    <string name="m8_duration_five_minutes">five minutes</string>
+    <string name="m8_duration_six_minutes">six minutes</string>
+    <string name="m8_duration_seven_minutes">seven minutes</string>
+    <string name="m8_duration_eight_minutes">eight minutes</string>
+    <string name="m8_duration_nine_minutes">nine minutes</string>
+    <string name="m8_duration_minutes">%1$d minutes</string>
+    <string name="m8_duration_an_hour">an hour</string>
+    <string name="m8_duration_an_hour_and_a_half">an hour and a half</string>
+    <string name="m8_duration_hours">%1$d hours</string>
+
+    <!-- ================================================== the faults
+         Sections 5.6 to 5.9. NOT SENT is the shared label for everything that failed
+         before the instruction landed, the same shape as NOTHING RECORDED and COULD
+         NOT WRITE: the user's first question is where their sentence went.
+
+         The passphrase file is named because naming it is the fix, and this is the
+         one path in the product that M4-copy's never-a-path rule does not govern:
+         that rule is about the user's own storage on the phone. The passphrase
+         itself is never printed anywhere, and there is no reveal control. -->
+    <string name="m8_fault_label_not_sent">NOT SENT</string>
+    <string name="m8_tunnel_off_title">Turn the tunnel on to use agents.</string>
+    <string name="m8_tunnel_off_body">Maia reaches your machine through the tunnel, and it is not up. Everything else in Maia works exactly as it does offline.</string>
+    <string name="m8_tunnel_off_action">Open Maia Tunnel</string>
+    <string name="m8_no_server_title">Your machine answered, the agent did not.</string>
+    <string name="m8_no_server_body">The tunnel is up and nothing is listening on the agent port. Start it on your machine:</string>
+    <string name="m8_no_server_command">systemctl --user start agent-web</string>
+    <string name="m8_no_server_action">Try again</string>
+    <string name="m8_auth_title">The passphrase was refused.</string>
+    <string name="m8_auth_body">Your machine answered and did not accept it. The one it expects is in:</string>
+    <string name="m8_auth_path">~/.config/opencode/agent-web.env</string>
+    <string name="m8_auth_action">Enter it again</string>
+    <string name="m8_auth_entry_label">PASSPHRASE</string>
+    <string name="m8_auth_entry_caption">Six words with hyphens. Maia keeps it and does not show it again.</string>
+    <string name="m8_no_project_title">There is no project %1$d.</string>
+    <string name="m8_no_project_body">The list goes up to %1$d.</string>
+    <string name="m8_retired_project_title">%1$d is not there any more.</string>
+    <string name="m8_retired_project_body">It was %1$s. Numbers are never reused, so %2$d stays empty.</string>
+
+    <!-- ===================================== the list, and ambiguity
+         Sections 5.10 and 5.11. Ordered by number, always, never by recency.
+         `m8_ambiguous_body` states the rule to the user's face: there is not going
+         to be a smarter version, and nothing on that screen ranks the candidates,
+         because a ranking is a guess with a disclaimer on it. -->
+    <string name="m8_list_eyebrow">WHICH PROJECT?</string>
+    <string name="m8_list_miss_title">Say the number.</string>
+    <string name="m8_list_miss_body">Maia did not recognise that name. Say a number, or tap one.</string>
+    <string name="m8_list_held">Held: %1$s</string>
+    <string name="m8_list_held_note">It goes as soon as you choose.</string>
+    <string name="m8_list_row">%1$d  %2$s</string>
+    <string name="m8_list_discard_action">Discard</string>
+    <string name="m8_list_sync_action">Refresh the list</string>
+    <string name="m8_list_row_cd">Project %1$d, %2$s. Double tap to send your instruction there.</string>
+    <string name="m8_list_held_cd">Held: %1$s. It is sent as soon as you choose a project.</string>
+    <string name="m8_list_discard_cd">Discard. Nothing is sent and the words are forgotten.</string>
+    <string name="m8_ambiguous_body">Maia will not choose for you. Say the number.</string>
+    <string name="m8_ambiguous_matches_label">MATCHES</string>
+    <string name="m8_ambiguous_all_label">EVERYTHING ELSE</string>
+
+    <!-- ============================== before the first list, and a stale one
+         Section 5.16, and the point of these eight is that three situations which
+         all render as "no list" are three different facts and are kept apart:
+         Maia has never had a list, Maia has a list it cannot refresh, and the
+         machine answered and said it has none. `registry-serve.py` answers 503
+         naming the cause rather than serving an empty list precisely so the third
+         is distinguishable, and the phone throwing that away would make the one
+         case where Maia knows more look like the case where it knows least.
+
+         `m8_list_stale_note` says what actually goes stale, and no more. Numbers
+         are allocated once and never reused, so a held number is still exactly the
+         project it was; only projects added since the fetch are missing. Saying the
+         numbering may be stale would be false, and would make a user hesitate to
+         say "seven" on the one screen whose entire premise is that the number is
+         the primary key.
+
+         `m8_list_stale_no_registry_note` is the fourth state: a list from last
+         time and a refresh that came back 503. It replaces `m8_list_stale_note` on
+         that line rather than sitting beside it, because the stale note's second
+         sentence implies a refresh would fix this and on a 503 that is false until
+         somebody runs the script on the devbox. `m8_list_registry_path` is reused
+         beneath it and `m8_list_sync_action` stays. -->
+    <string name="m8_list_first_sync_title">Getting your project list.</string>
+    <string name="m8_list_first_sync_body">The first one takes a moment. After this Maia keeps a copy, so the list is there even when your machine is not.</string>
+    <string name="m8_list_none_yet_title">No project list yet.</string>
+    <string name="m8_list_none_yet_body">Maia has never had a list from your machine, so there is nothing to show and nothing older to fall back on.</string>
+    <string name="m8_list_no_registry_title">Your machine has no project list.</string>
+    <string name="m8_list_no_registry_body">It answered, and it has nothing to send. The list is built at that end by:</string>
+    <string name="m8_list_registry_path">maia-projects.sh</string>
+    <string name="m8_list_stale_note">This is the last list Maia had. A project added since will be missing from it.</string>
+    <string name="m8_list_stale_no_registry_note">This is the last list Maia had. Your machine answered just now and has nothing to send, so trying again will not bring a newer one. The list is built at that end by:</string>
+
+    <!-- ============================================= the tunnel card
+         Section 5.12, decision 13.3: keep the browser button and label it as what it
+         is. `ink.mid` and not `ink.high`, because it is not the primary thing on
+         that card and should not look like it. -->
+    <string name="m8_tunnel_browser_action">Open the agent in a browser</string>
+    <string name="m8_tunnel_browser_caption">A way in when Maia\'s own agent screen is not working. It opens the web app on your machine.</string>
+
+    <!-- ====================================================== locked
+         Section 5.13. M3's queued screen with one substitution, and `%1$s` in the
+         label is only what the user themselves said: never the registry's name for
+         a number they spoke, never the number for a name they spoke, never a path.
+         `m3_locked_queued_title` is reused verbatim and is not redefined here. -->
+    <string name="m8_locked_queued_label">KEPT FOR %1$s</string>
+    <string name="m8_locked_queued_body">Nothing has been sent. It goes when you unlock, and you can change your mind there.</string>
+    <string name="m8_locked_unlock_action_cd_agent">Unlock. Your instruction is sent after you unlock.</string>
+
+    <!-- =============================================== accessibility
+         Section 6.1. The reply is not a live region: the status label is, and it
+         announces five state changes at most across a four-minute run. These are
+         the one announcement at the end, plus the code-block heading and the custom
+         action that re-reads a long turn from the top. -->
+    <string name="m8_run_done_announce">Reply finished. Swipe right to read it from the top.</string>
+    <string name="m8_run_blocked_announce">%1$d is waiting for you. The answer controls are at the bottom of the screen.</string>
+    <string name="m8_run_cut_announce">The reply stopped part way. What arrived is above.</string>
+    <string name="m8_run_code_block_cd">Code, %1$d lines.</string>
+    <string name="m8_run_read_from_start">Read the reply from the start</string>
+
+    <!-- ================================================ the status labels
+         The orb's text twin, and mandatory at every size on the run screen
+         (section 1.1): below widget size the form is never the sole indicator.
+         This is also the screen's one live region, polite, announcing at most
+         five state changes across a four-minute run (section 6.1).
+
+         The eight words are verbatim from section 6.3, which writes them in
+         full and in order: SENDING, SENT, WORKING, QUEUED, WAITING FOR YOU,
+         FINISHED, STOPPED, DID NOT FINISH. The ids are not: section 10 defines
+         none for them, which is the one gap in that document this screen could
+         not be drawn around, and it is reported rather than resolved by
+         rewording anything. If the design seat names them differently, these
+         eight lines are the only ones that change.
+
+         "Waiting for you" is two words longer than "blocked" and is the one a
+         person understands without being told what it means. All constant, no
+         counts and no timers, written to be heard as well as seen. -->
+    <string name="m8_run_status_sending">SENDING</string>
+    <string name="m8_run_status_sent">SENT</string>
+    <string name="m8_run_status_working">WORKING</string>
+    <string name="m8_run_status_queued">QUEUED</string>
+    <string name="m8_run_status_waiting_for_you">WAITING FOR YOU</string>
+    <string name="m8_run_status_finished">FINISHED</string>
+    <string name="m8_run_status_stopped">STOPPED</string>
+    <string name="m8_run_status_did_not_finish">DID NOT FINISH</string>
+
+    <!-- =============================================== the project, in the header
+         `7 maia`, the number in data.lg mono and the name in body (section 1.1).
+         Two views rather than one formatted string, because the two halves take
+         different type and the number must not shrink when the name does
+         (section 6.4). This is the description a screen reader gets for the
+         pair, and it is the only header string with an id of engineering's
+         making. -->
+    <string name="m8_run_project_cd">Project %1$d, %2$s.</string>
+
+    <!-- ============================================== the ambiguity title
+         A plurals resource with an explicit "two" case (section 5.11). English
+         in Android has only "one" and "other", so the "two" case cannot live in
+         the plurals resource and is its own string, chosen in code when the
+         count is exactly two. The plurals resource carries the rest. -->
+    <string name="m8_ambiguous_title_two">Two projects match.</string>
+    <plurals name="m8_ambiguous_title">
+        <item quantity="other">%1$d projects match.</item>
+    </plurals>
+</resources>

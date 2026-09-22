@@ -1,0 +1,39 @@
+# Build output
+build/
+.gradle/
+*.aar
+*.apk
+*.so
+
+# Local toolchain paths, machine specific
+local.properties
+
+# Secrets: tailcat addresses embed a WireGuard PSK, node keys are identities.
+# Nothing matching these belongs in a commit, even a private one.
+*.key
+*.private.json
+*-addr*.txt
+scratchpad/
+.scratch/
+
+# Documentation stays local. The PRD and the milestone briefs carry devbox
+# addresses, tailnet details and personal planning, and none of that belongs on
+# a remote. The PRD header still says the repo file is the canonical copy, and
+# it still is: canonical here, not published.
+docs/*
+
+# One exception, and only one. docs/M8-copy.md is a test input: M8CopyTest reads
+# it and compares it against the generated strings file, so the words on screen
+# and the words in the document cannot drift. A test whose input is not in the
+# repository cannot run from a fresh clone, and the copy would exist on one disk
+# only. It carries no addresses, no absolute paths and no credentials. Git
+# cannot re-include a file under an excluded directory, which is why the line
+# above ends in a star: everything else in docs/ stays unpublished.
+!docs/M8-copy.md
+
+# Token-usage telemetry from an unrelated local tool, not repo content.
+.fusion/
+
+# graft's local graph cache, regenerable, not committed (run `graft build`).
+/graft/
+__pycache__/

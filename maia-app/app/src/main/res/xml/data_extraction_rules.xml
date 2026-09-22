@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Nothing Maia holds leaves the device through a backup or a device transfer.
+
+    android:allowBackup="false" already says this, but only up to Android 11.
+    From 12 that attribute is deprecated and these rules are what the platform
+    actually reads, so without this file a future release would quietly regain
+    cloud backup on exactly the data that matters: what the user dictated, and
+    which calendars they write to.
+
+    Both channels are excluded in full rather than selectively. An allowlist
+    here would need updating every time the app stores something new, and the
+    failure mode of forgetting is that private data is uploaded.
+-->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="root" />
+        <exclude domain="file" />
+        <exclude domain="database" />
+        <exclude domain="sharedpref" />
+        <exclude domain="external" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="root" />
+        <exclude domain="file" />
+        <exclude domain="database" />
+        <exclude domain="sharedpref" />
+        <exclude domain="external" />
+    </device-transfer>
+</data-extraction-rules>
