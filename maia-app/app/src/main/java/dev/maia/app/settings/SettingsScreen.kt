@@ -40,6 +40,7 @@ import dev.maia.app.ui.ButtonKind
 import dev.maia.app.ui.DockSide
 import dev.maia.app.ui.Maia
 import dev.maia.app.ui.MaiaButton
+import dev.maia.app.ui.ModelDownload
 import dev.maia.app.ui.OrbDock
 import dev.maia.app.ui.dockInset
 import dev.maia.app.ui.raisedEdge
@@ -75,6 +76,10 @@ fun SettingsScreen(
     onEventsTo: (EventsTo) -> Unit = {},
     homeCity: String = "",
     onHomeCity: (String) -> Unit = {},
+    status: SettingsStatus? = null,
+    downloads: Map<String, ModelDownload> = emptyMap(),
+    onDownload: (ModelKind) -> Unit = {},
+    onPermissions: () -> Unit = {},
 ) {
     val colours = Maia.colours
     Box(Modifier.fillMaxSize().background(colours.groundBase).imePadding()) {
@@ -94,6 +99,7 @@ fun SettingsScreen(
             NotesFolderRow(row, onChoose, onRelease)
             EventsRow(eventsTo, onEventsTo)
             HomeCityRow(homeCity, onHomeCity)
+            StatusSections(status, downloads, onDownload, onPermissions)
         }
         if (sheetOpen) FolderSheet(onSheetChoose, onSheetDismiss)
     }

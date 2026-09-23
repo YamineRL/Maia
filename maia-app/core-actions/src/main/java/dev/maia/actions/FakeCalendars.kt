@@ -80,8 +80,8 @@ class FakeCalendars(
     companion object {
         /** Two calendars and a read-only third, which is the interesting case. */
         val defaultSet: List<MaiaCalendar> = listOf(
-            MaiaCalendar(1, "Personal", "user@example.org", 0xFF5B4BE1.toInt(), isDefault = true),
-            MaiaCalendar(2, "Work", "user@example.org", 0xFFD83C8E.toInt()),
+            MaiaCalendar(1, "Personal", "nuh@example.org", 0xFF5B4BE1.toInt(), isDefault = true),
+            MaiaCalendar(2, "Work", "nuh@example.org", 0xFFD83C8E.toInt()),
             MaiaCalendar(3, "Holidays", "subscribed", 0xFFE8A33D.toInt(), writable = false),
         )
 

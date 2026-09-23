@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="settings_devbox_label">Devbox</string>
+    <string name="settings_devbox_agent">Agent</string>
+    <string name="settings_devbox_assistant">Assistant</string>
+    <string name="settings_paired">Paired</string>
+    <string name="settings_not_paired">Not paired</string>
+    <string name="settings_devbox_reached">Answers come from your devbox over tailcat. It has been reached from this phone.</string>
+    <string name="settings_devbox_never">Answers come from your devbox over tailcat. It has not been reached from this phone yet.</string>
+
+    <string name="settings_models_label">Models on this phone</string>
+    <string name="settings_model_speech">Speech recognition</string>
+    <string name="settings_model_sharper">Sharper recognition</string>
+    <string name="settings_model_answers">Offline answers</string>
+    <string name="settings_model_ready">Ready · %1$s</string>
+    <string name="settings_model_downloading">Downloading · %1$d%%</string>
+    <string name="settings_model_missing">Not downloaded</string>
+    <string name="settings_model_sharper_caption">About 670 MB. Makes each sentence more accurate once you finish it.</string>
+    <string name="settings_model_answers_caption">About 3 GB. Lets Maia answer when the devbox can\'t be reached. Normally fetched on Wi-Fi when Maia opens.</string>
+    <string name="settings_model_download_now">Download now</string>
+
+    <string name="settings_perms_label">Permissions</string>
+    <string name="settings_perm_microphone">Microphone</string>
+    <string name="settings_perm_calendar">Calendar</string>
+    <string name="settings_perm_contacts">Contacts</string>
+    <string name="settings_perm_camera">Camera</string>
+    <string name="settings_perm_notifications">Notifications</string>
+    <string name="settings_perm_allowed">Allowed</string>
+    <string name="settings_perm_denied">Not allowed</string>
+    <string name="settings_perms_open">Change permissions</string>
+
+    <string name="settings_about_label">About</string>
+    <string name="settings_about_version">Version</string>
+    <string name="settings_about_storage">Models on disk</string>
+</resources>

@@ -37,6 +37,7 @@ class OfflineModelStore(
     private val root: File,
     private val baseUrl: String = BASE_URL,
     private val nanoTime: () -> Long = System::nanoTime,
+    private val files: List<String> = FILES,
 ) {
 
     sealed interface Progress {
@@ -54,7 +55,7 @@ class OfflineModelStore(
     }
 
     val isComplete: Boolean
-        get() = FILES.all { File(root, it).isFile }
+        get() = files.all { File(root, it).isFile }
 
     fun paths() = OfflineModelPaths(
         encoder = File(root, ENCODER).absolutePath,
@@ -67,7 +68,7 @@ class OfflineModelStore(
         if (!root.isDirectory && !root.mkdirs()) {
             throw IOException("cannot create model directory $root")
         }
-        val missing = FILES.filterNot { File(root, it).isFile }
+        val missing = files.filterNot { File(root, it).isFile }
         missing.forEachIndexed { index, name ->
             emit(Progress.Downloading(name, index + 1, missing.size, 0f))
             download(name) { bytes, total, rate ->

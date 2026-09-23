@@ -30,8 +30,12 @@ sealed interface FlowState {
      */
     data class Idle(val transcript: String? = null) : FlowState
 
-    /** The press has landed and capture is starting. [pressedAt] times the first word. */
-    data class Invoking(val pressedAt: Long) : FlowState
+    /**
+     * The press has landed and capture is starting. [pressedAt] times the
+     * first word; [surface] is the modal screen the invocation came from,
+     * carried unchanged to [Effect.Parse].
+     */
+    data class Invoking(val pressedAt: Long, val surface: Surface = Surface.Neutral) : FlowState
 
     data class Listening(
         val pressedAt: Long,
@@ -39,6 +43,8 @@ sealed interface FlowState {
         val words: List<Word> = emptyList(),
         /** The first-partial haptic plays once per session, and this is "once". */
         val firstPartialFelt: Boolean = false,
+        /** Set at the press, like [Invoking.surface]; the capture only carries it. */
+        val surface: Surface = Surface.Neutral,
     ) : FlowState
 
     /**

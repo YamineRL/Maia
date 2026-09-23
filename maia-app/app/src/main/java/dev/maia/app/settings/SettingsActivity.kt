@@ -1,17 +1,22 @@
 package dev.maia.app.settings
 
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
+import android.provider.Settings
 import android.provider.DocumentsContract
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.core.net.toUri
 import androidx.lifecycle.lifecycleScope
 import dev.maia.actions.notes.SafNotes
+import dev.maia.app.EngineHolder
 import dev.maia.app.notes.FolderPicker
 import dev.maia.app.notes.FolderRow
 import dev.maia.app.notes.folderRow
@@ -58,6 +63,8 @@ class SettingsActivity : ComponentActivity() {
 
     private var homeCity by mutableStateOf("")
 
+    private var status by mutableStateOf<SettingsStatus?>(null)
+
     /** Set by a release on this screen and cleared by a pick: [FolderRow.Released]'s one source. */
     private var released = false
 
@@ -72,6 +79,7 @@ class SettingsActivity : ComponentActivity() {
             MaiaTheme {
                 CompositionLocalProvider(LocalMaiaColours provides maiaColours()) {
                     BackHandler(enabled = sheetOpen) { sheetOpen = false }
+                    val downloads by EngineHolder.downloads.collectAsState()
                     MaiaOrbHost(ApertureState.Dormant) {
                         SettingsScreen(
                             row = row,
@@ -93,6 +101,14 @@ class SettingsActivity : ComponentActivity() {
                                 homeCity = it
                                 prefs.homeCity = it
                             },
+                            status = status,
+                            downloads = downloads,
+                            onDownload = ::download,
+                            onPermissions = {
+                                startActivity(
+                                    Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", packageName, null)),
+                                )
+                            },
                         )
                     }
                 }
@@ -106,6 +122,27 @@ class SettingsActivity : ComponentActivity() {
         eventsTo = prefs.eventsTo
         homeCity = prefs.homeCity
         lifecycleScope.launch { refresh() }
+        lifecycleScope.launch { readStatus() }
+        // A finished download changes a row from downloading to ready; re-read then.
+        lifecycleScope.launch {
+            var before = EngineHolder.downloads.value.keys
+            EngineHolder.downloads.collect { now ->
+                if ((before - now.keys).isNotEmpty()) readStatus()
+                before = now.keys
+            }
+        }
+    }
+
+    private suspend fun readStatus() {
+        status = withContext(Dispatchers.IO) { runCatching { readSettingsStatus(this@SettingsActivity) }.getOrNull() }
+    }
+
+    private fun download(kind: ModelKind) {
+        when (kind) {
+            ModelKind.OfflineAnswers -> EngineHolder.fetchLocalModel(this, anyNetwork = true)
+            ModelKind.SharperSpeech -> EngineHolder.warmRescorer(this)
+            ModelKind.Speech -> EngineHolder.warmEngine(this)
+        }
     }
 
     private fun release() {

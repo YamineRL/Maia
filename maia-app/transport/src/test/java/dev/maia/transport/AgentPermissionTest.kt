@@ -67,16 +67,16 @@ class AgentPermissionTest {
     // ---- the route -------------------------------------------------------
 
     @Test
-    fun `the reply goes to the v1 route, carrying the session's directory`() {
-        // Not /api/session/{id}/permission/{id}/reply. That route is in the
-        // OpenAPI document and answers 500 on this server, along with every
-        // other v2 permission route. And the directory is load bearing: the
-        // pending request lives in a map owned by one project instance, so a
-        // reply without it looks in the wrong map and 404s for the wrong
-        // reason.
+    fun `the reply goes to the v2 session route, carrying no directory`() {
+        // Verified live: a real external_directory ask listed through
+        // GET /api/session/{id}/permission, took {"reply":"once"} on this
+        // route, and the suspended tool call completed. The session id does
+        // the work ?directory= did on the v1 route, and the v1 route is blind
+        // to v2 asks: GET /permission?directory= answered [] for the same
+        // pending request.
         val (channel, _) = reply(Reply(200, "true"))
         assertEquals("POST", channel.method)
-        assertEquals("/permission/per_7/reply?directory=%2Fr%2Fmaia", channel.path)
+        assertEquals("/api/session/ses_1/permission/per_7/reply", channel.path)
     }
 
     @Test
@@ -170,23 +170,25 @@ class AgentPermissionTest {
     // ---- reconciling after being offline ---------------------------------
 
     @Test
-    fun `pending permissions are read from the v1 list, scoped to a directory`() {
-        val channel = RecordingChannel(Reply(200, "[]"))
-        AgentClient(channel).pendingPermissions("/r/maia")
+    fun `pending permissions are read from the session-scoped v2 list`() {
+        val channel = RecordingChannel(Reply(200, """{"data":[]}"""))
+        AgentClient(channel).pendingPermissions(session)
         assertEquals("GET", channel.method)
-        assertEquals("/permission?directory=%2Fr%2Fmaia", channel.path)
+        assertEquals("/api/session/ses_1/permission", channel.path)
     }
 
     @Test
     fun `a pending request parses into what a notification needs`() {
+        // The v2 row: action is the rule, resources is what was asked for,
+        // save is what "always" would remember.
         val channel = RecordingChannel(
             Reply(
                 200,
-                """[{"id":"per_7","sessionID":"ses_1","permission":"external_directory",""" +
-                    """"patterns":["/etc/*"],"always":["/etc/*"],"metadata":{}}]""",
+                """{"data":[{"id":"per_7","sessionID":"ses_1","action":"external_directory",""" +
+                    """"resources":["/etc/*"],"save":["/etc/*"]}]}""",
             )
         )
-        val pending = AgentClient(channel).pendingPermissions("/r/maia")
+        val pending = AgentClient(channel).pendingPermissions(session)
         assertEquals(1, pending.size)
         assertEquals(
             PendingPermission(
@@ -201,43 +203,36 @@ class AgentPermissionTest {
     }
 
     @Test
-    fun `an empty always is the signal that allow always would remember nothing`() {
+    fun `an empty save is the signal that allow always would remember nothing`() {
         // Both holes agent-web.sh leaves open do send one, so this is the
         // defensive case rather than the expected one: if a request ever
         // arrives without it, the screen must not offer to remember a choice
         // the server will discard.
         val channel = RecordingChannel(
-            Reply(200, """[{"id":"per_8","sessionID":"ses_1","permission":"doom_loop"}]"""),
+            Reply(200, """{"data":[{"id":"per_8","sessionID":"ses_1","action":"doom_loop"}]}"""),
         )
-        val pending = AgentClient(channel).pendingPermissions("/r/maia").single()
+        val pending = AgentClient(channel).pendingPermissions(session).single()
         assertTrue("nothing to remember", pending.always.isEmpty())
         assertEquals("doom_loop", pending.permission)
     }
 
     @Test
     fun `a row without an id is dropped rather than half parsed`() {
-        val channel = RecordingChannel(Reply(200, """[{"sessionID":"ses_1"},"nonsense"]"""))
-        assertTrue(AgentClient(channel).pendingPermissions("/r/maia").isEmpty())
+        val channel = RecordingChannel(Reply(200, """{"data":[{"sessionID":"ses_1"},"nonsense"]}"""))
+        assertTrue(AgentClient(channel).pendingPermissions(session).isEmpty())
     }
 
     @Test
-    fun `the list is not wrapped in a data envelope`() {
-        // The v1 routes answer with the object itself. Reading a "data" key
-        // here would quietly return nothing and look like an idle agent.
-        val channel = RecordingChannel(Reply(200, """{"data":[{"id":"per_7"}]}"""))
-        assertTrue(
-            "an object where a list belongs is not a pending permission",
-            AgentClient(channel).pendingPermissions("/r/maia").isEmpty(),
-        )
-    }
-
-    @Test
-    fun `a directory that is not absolute is refused before any request`() {
+    fun `the list is read out of the data envelope`() {
+        // The /api routes answer with {data: [...]}. A bare list is the v1
+        // shape, and returning it as rows would silently mix the two APIs,
+        // so it throws rather than half parse.
+        val channel = RecordingChannel(Reply(200, """[{"id":"per_7"}]"""))
         try {
-            AgentClient(RecordingChannel(Reply(200, "[]"))).pendingPermissions("maia")
-            fail("a relative directory must not reach the server")
-        } catch (e: IllegalArgumentException) {
-            assertTrue(e.message!!.contains("absolute"))
+            AgentClient(channel).pendingPermissions(session)
+            fail("a bare list where an envelope belongs must not parse")
+        } catch (e: AgentException) {
+            assertTrue(e.message!!.contains("data envelope"))
         }
     }
 
@@ -247,6 +242,8 @@ class AgentPermissionTest {
     fun `permission asked is what a phone notifies on`() {
         assertEquals("permission.asked", EventType.PERMISSION_ASKED)
         assertTrue(EventType.PERMISSION_ASKED in EventType.BLOCKING)
+        assertEquals("permission.v2.asked", EventType.PERMISSION_V2_ASKED)
+        assertTrue(EventType.PERMISSION_V2_ASKED in EventType.BLOCKING)
     }
 
     @Test

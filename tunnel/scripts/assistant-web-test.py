@@ -57,7 +57,19 @@ class FakeLlama(http.server.BaseHTTPRequestHandler):
                 for m in st["resident"]
             ]
             self._json({"object": "list", "data": data})
-        elif self.path == "/slots":
+        elif self.path.startswith("/slots"):
+            # Router mode requires the model named: a bare /slots answers
+            # 400 there, and must never be read as idle.
+            if st.get("require_model") and "?model=" not in self.path:
+                self._json(
+                    {"error": {"message": "model name is missing"}},
+                    status=400)
+                return
+            with st["lock"]:
+                st["slots_queries"].append(self.path)
+                busy = st["busy"] or st["busy_calls_remaining"] > 0
+                if st["busy_calls_remaining"] > 0:
+                    st["busy_calls_remaining"] -= 1
             shape = st.get("slots_shape", "normal")
             if shape == "weird":
                 # Defensive rule: an unreadable /slots means idle.
@@ -66,8 +78,8 @@ class FakeLlama(http.server.BaseHTTPRequestHandler):
                 self._json([
                     {
                         "id": 0,
-                        "id_task": 1 if st["busy"] else -1,
-                        "is_processing": st["busy"],
+                        "id_task": 1 if busy else -1,
+                        "is_processing": busy,
                     }
                 ])
         else:
@@ -108,6 +120,8 @@ def start_fake():
         "resident": ["model-A"],
         "statuses": {},
         "busy": False,
+        "busy_calls_remaining": 0,
+        "slots_queries": [],
         "gen_sleep": 0.0,
         "chat_status": 200,
         "content": '{"type":"answer","text":"hi"}',
@@ -121,13 +135,14 @@ def start_fake():
 
 
 def start_assistant(fake_port, model="model-B", budget=6.0, poll=0.05,
-                    key_file=None):
+                    key_file=None, busy_wait=12.0):
     env = {
         "ASSISTANT_PASSWORD": PASSWORD,
         "LLAMA_URL": "http://127.0.0.1:%d" % fake_port,
         "PORT": "0",
         "ASSISTANT_BUDGET_SECONDS": str(budget),
         "ASSISTANT_POLL_SECONDS": str(poll),
+        "ASSISTANT_BUSY_WAIT_SECONDS": str(busy_wait),
     }
     if model is not None:
         env["ASSISTANT_MODEL"] = model
@@ -261,6 +276,20 @@ def main():
           and body["reply"].get("text") == "fenced",
           "got %d %r" % (st, body))
 
+    fake.state["content"] = ('{"type":"answer","text":"Geneva sits on the lake. '
+                             'It hosts the UN.","spoken":"Geneva is home to the UN, the Red Cross, and world-famou')
+    st, body = call(port, body={"utterance": "hi"})
+    check("cut-off envelope shows its text, not JSON",
+          st == 200 and body["reply"].get("type") == "answer"
+          and body["reply"].get("text") == "Geneva sits on the lake. It hosts the UN.",
+          "got %d %r" % (st, body))
+
+    fake.state["content"] = '{"type":"answer","text":"Geneva sits on the \\"lake\\" and hos'
+    st, body = call(port, body={"utterance": "hi"})
+    check("envelope cut inside text keeps the prose, marked cut",
+          st == 200 and body["reply"].get("text") == 'Geneva sits on the "lake" and hos\u2026',
+          "got %d %r" % (st, body))
+
     fake.state["content"] = "I think the answer is probably something."
     st, body = call(port, body={"utterance": "hi"})
     check("garbage degrades to answer",
@@ -322,6 +351,49 @@ def main():
     check("busy slot answers 503 busy inside budget",
           st == 503 and body.get("error") == "busy" and elapsed < 4.0,
           "got %d %r after %.2fs" % (st, body, elapsed))
+
+    # The busy wait is capped below the phone's timeout: a slot that never
+    # frees must answer busy at the cap, not at the full budget.
+    srv5, port5 = start_assistant(fake_port, budget=6.0, poll=0.05,
+                                  key_file=key_file, busy_wait=0.5)
+    started = time.monotonic()
+    st, body = call(port5, body={"utterance": "hi"})
+    elapsed = time.monotonic() - started
+    check("busy wait capped below budget",
+          st == 503 and body.get("error") == "busy" and elapsed < 4.0,
+          "got %d %r after %.2fs" % (st, body, elapsed))
+
+    # Router mode regression: a bare /slots answers 400. The gateway must
+    # name the resident model on every slot check, or busy reads as idle
+    # and the request parks in the occupied slot until it dies.
+    fake.state["require_model"] = True
+    fake.state["slots_queries"] = []
+    st, body = call(port5, body={"utterance": "hi"})
+    queries = list(fake.state["slots_queries"])
+    check("router-mode /slots still detects busy",
+          st == 503 and body.get("error") == "busy"
+          and queries and all("?model=model-A" in q for q in queries),
+          "got %d %r queries=%r" % (st, body, queries))
+    fake.state["require_model"] = False
+
+    # A slot that frees inside the busy window is dispatched, not failed.
+    fake.state["busy"] = False
+    fake.state["busy_calls_remaining"] = 4
+    st, body = call(port5, body={"utterance": "hi"})
+    check("slot freeing inside the window answers",
+          st == 200 and body.get("ok") is True,
+          "got %d %r" % (st, body))
+    srv5.shutdown()
+
+    # Nothing resident: the slot check must not run at all. Naming
+    # ASSISTANT_MODEL in /slots could autoload it just to ask if it is busy.
+    fake.state["resident"] = []
+    fake.state["slots_queries"] = []
+    st, _ = call(port, body={"utterance": "hi"})
+    check("no /slots call when nothing resident",
+          st == 200 and not fake.state["slots_queries"],
+          "queries=%r" % (fake.state["slots_queries"],))
+    fake.state["resident"] = ["model-A"]
     fake.state["busy"] = False
 
     # --- unreadable /slots means idle ----------------------------------------

@@ -13,7 +13,7 @@ import org.junit.Test
  * The sibling of [AgentPermissionTest], and written the same way: the route,
  * the body and the schemas come from `GET /doc` on opencode 1.18.31 and from
  * the server's own bundled source, and the 404 and 400 shapes were confirmed
- * live against `POST /question/{id}/reply` with an id that has never existed,
+ * live against `POST /api/session/{id}/question/{id}/reply`,
  * which costs nothing and starts no agent. No prompt was sent to get any of it.
  *
  * What these tests mostly protect is the thing that surprised us. A question
@@ -67,15 +67,13 @@ class AgentQuestionTest {
     // ---- the route -------------------------------------------------------
 
     @Test
-    fun `the reply goes to the v1 route, carrying the session's directory`() {
-        // Not /api/session/{id}/question/{id}/reply. The v1 route is the one
-        // whose event the phone receives (question.asked, not
-        // question.v2.asked) and the one the `question` tool actually uses.
-        // The directory is load bearing for the same reason it is on a
-        // permission: the pending map belongs to one project instance.
+    fun `the reply goes to the v2 session route, carrying no directory`() {
+        // The session id does the work ?directory= did on the v1 route: the
+        // pending map belongs to one project instance, and the session scopes
+        // the lookup to the instance that holds it.
         val (channel, _) = reply(Reply(200, "true"))
         assertEquals("POST", channel.method)
-        assertEquals("/question/que_7/reply?directory=%2Fr%2Fmaia", channel.path)
+        assertEquals("/api/session/ses_1/question/que_7/reply", channel.path)
     }
 
     @Test
@@ -193,7 +191,7 @@ class AgentQuestionTest {
         val channel = RecordingChannel(Reply(200, "true"))
         val outcome = AgentClient(channel).rejectQuestion(session, "que_7")
         assertEquals("POST", channel.method)
-        assertEquals("/question/que_7/reject?directory=%2Fr%2Fmaia", channel.path)
+        assertEquals("/api/session/ses_1/question/que_7/reject", channel.path)
         assertEquals(null, channel.body)
         assertEquals(ReplyOutcome.ACCEPTED, outcome)
     }
@@ -201,27 +199,17 @@ class AgentQuestionTest {
     // ---- reconciling after being offline ---------------------------------
 
     @Test
-    fun `pending questions are read from the v1 list, scoped to a directory`() {
-        val channel = RecordingChannel(Reply(200, "[]"))
-        AgentClient(channel).pendingQuestions("/r/maia")
+    fun `pending questions are read from the session-scoped v2 list`() {
+        val channel = RecordingChannel(Reply(200, """{"data":[]}"""))
+        AgentClient(channel).pendingQuestions(session)
         assertEquals("GET", channel.method)
-        assertEquals("/question?directory=%2Fr%2Fmaia", channel.path)
-    }
-
-    @Test
-    fun `a directory that is not absolute is refused before any request`() {
-        try {
-            AgentClient(RecordingChannel(Reply(200, "[]"))).pendingQuestions("maia")
-            fail("a relative directory must not reach the server")
-        } catch (e: IllegalArgumentException) {
-            assertTrue(e.message!!.contains("absolute"))
-        }
+        assertEquals("/api/session/ses_1/question", channel.path)
     }
 
     @Test
     fun `a pending question parses into what a screen needs`() {
-        val channel = RecordingChannel(Reply(200, "[" + ASKED + "]"))
-        val pending = AgentClient(channel).pendingQuestions("/r/maia").single()
+        val channel = RecordingChannel(Reply(200, """{"data":[$ASKED]}"""))
+        val pending = AgentClient(channel).pendingQuestions(session).single()
         assertEquals("que_7", pending.id)
         assertEquals("ses_1", pending.sessionId)
         val asked = pending.questions.single()
@@ -284,17 +272,19 @@ class AgentQuestionTest {
 
     @Test
     fun `a row without questions is dropped rather than half parsed`() {
-        val channel = RecordingChannel(Reply(200, """[{"id":"que_7"},"nonsense"]"""))
-        assertTrue(AgentClient(channel).pendingQuestions("/r/maia").isEmpty())
+        val channel = RecordingChannel(Reply(200, """{"data":[{"id":"que_7"},"nonsense"]}"""))
+        assertTrue(AgentClient(channel).pendingQuestions(session).isEmpty())
     }
 
     @Test
-    fun `the list is not wrapped in a data envelope`() {
-        val channel = RecordingChannel(Reply(200, """{"data":[$ASKED]}"""))
-        assertTrue(
-            "an object where a list belongs is not a pending question",
-            AgentClient(channel).pendingQuestions("/r/maia").isEmpty(),
-        )
+    fun `the list is read out of the data envelope`() {
+        val channel = RecordingChannel(Reply(200, "[$ASKED]"))
+        try {
+            AgentClient(channel).pendingQuestions(session)
+            fail("a bare list where an envelope belongs must not parse")
+        } catch (e: AgentException) {
+            assertTrue(e.message!!.contains("data envelope"))
+        }
     }
 
     // ---- the stream's half of the contract -------------------------------
@@ -303,6 +293,8 @@ class AgentQuestionTest {
     fun `question asked is what a phone notifies on`() {
         assertEquals("question.asked", EventType.QUESTION_ASKED)
         assertTrue(EventType.QUESTION_ASKED in EventType.BLOCKING)
+        assertEquals("question.v2.asked", EventType.QUESTION_V2_ASKED)
+        assertTrue(EventType.QUESTION_V2_ASKED in EventType.BLOCKING)
     }
 
     @Test

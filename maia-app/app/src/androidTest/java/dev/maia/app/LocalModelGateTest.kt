@@ -101,14 +101,14 @@ class LocalModelGateTest {
     fun reply_carriesHistory_andStaysOnPhone() {
         assumeTrue("gemma not provisioned on this device", converser.installed)
         runBlocking {
-            assertNotNull(converser.reply("My name is Sam.", emptyList()))
+            assertNotNull(converser.reply("My name is Nuh.", emptyList()))
             val followUp = converser.reply(
                 "What is my name? One word.",
-                listOf(Turn(dev.maia.transport.Role.USER, "My name is Sam."),
-                    Turn(dev.maia.transport.Role.ASSISTANT, "Your name is Sam.")),
+                listOf(Turn(dev.maia.transport.Role.USER, "My name is Nuh."),
+                    Turn(dev.maia.transport.Role.ASSISTANT, "Your name is Nuh.")),
             )
             assertNotNull(followUp)
-            assertTrue("expected sam in $followUp", followUp!!.lowercase().contains("sam"))
+            assertTrue("expected nuh in $followUp", followUp!!.lowercase().contains("nuh"))
         }
     }
 

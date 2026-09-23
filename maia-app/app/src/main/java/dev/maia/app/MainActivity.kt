@@ -29,6 +29,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -56,6 +57,7 @@ import dev.maia.app.flow.FlowEvent
 import dev.maia.app.flow.FlowHost
 import dev.maia.app.flow.FlowState
 import dev.maia.app.flow.Origin
+import dev.maia.app.flow.Surface
 import dev.maia.app.flow.aperture
 import dev.maia.app.flow.loadNotesFolder
 import dev.maia.app.notes.FolderPicker
@@ -85,6 +87,7 @@ import dev.maia.app.settings.MaiaPrefs
 import dev.maia.app.settings.SettingsActivity
 import dev.maia.app.ui.DownloadCopy
 import dev.maia.app.ui.LocalMaiaColours
+import dev.maia.app.ui.DownloadStrip
 import dev.maia.app.ui.Maia
 import dev.maia.app.ui.MaiaOrbHost
 import dev.maia.app.ui.MaiaTheme
@@ -405,7 +408,10 @@ class MainActivity : ComponentActivity(), FlowHost {
         // the frame it is buying time for. `warmEngineIfPresent` rather than
         // `warmEngine`, because a fresh install has no model to load and its
         // download is the first-run screen's to start.
-        window.decorView.doOnPreDraw { EngineHolder.warmEngineIfPresent(this) }
+        window.decorView.doOnPreDraw {
+            EngineHolder.warmEngineIfPresent(this)
+            EngineHolder.fetchLocalModel(this)
+        }
 
         setContent {
             MaiaTheme {
@@ -768,7 +774,17 @@ class MainActivity : ComponentActivity(), FlowHost {
                                 )
                                 // D5's way in (row 7). On the idle screen only: the
                                 // one moment nothing is being said or held.
-                                if (state is FlowState.Idle) SettingsEntry(Modifier.align(Alignment.TopEnd))
+                                if (state is FlowState.Idle) {
+                                    SettingsEntry(Modifier.align(Alignment.TopEnd))
+                                    val downloads by EngineHolder.downloads.collectAsState()
+                                    DownloadStrip(
+                                        downloads.values,
+                                        Modifier
+                                            .align(Alignment.TopStart)
+                                            .windowInsetsPadding(WindowInsets.safeDrawing)
+                                            .padding(top = Maia.space.touchTarget + Maia.space.md),
+                                    )
+                                }
                             }
                         }
                     }
@@ -819,8 +835,17 @@ class MainActivity : ComponentActivity(), FlowHost {
     private fun onEvent(event: FlowEvent) {
         val invoke = when (event) {
             // copy, not a fresh Invoke: a rebuilt event would drop the family.
-            is FlowEvent.Invoke -> event.copy(locked = keyguard?.isKeyguardLocked == true)
-            FlowEvent.Press -> FlowEvent.Invoke(Origin.Launcher, locked = keyguard?.isKeyguardLocked == true)
+            // The surface is stamped the same way [locked] is: the run screen
+            // is up exactly when `runOpen`, and only this window knows that.
+            is FlowEvent.Invoke -> event.copy(
+                locked = keyguard?.isKeyguardLocked == true,
+                surface = if (runOpen) Surface.Agent else event.surface,
+            )
+            FlowEvent.Press -> FlowEvent.Invoke(
+                Origin.Launcher,
+                locked = keyguard?.isKeyguardLocked == true,
+                surface = if (runOpen) Surface.Agent else Surface.Neutral,
+            )
             else -> null
         }
         if (invoke == null) {

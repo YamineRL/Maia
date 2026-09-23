@@ -100,8 +100,12 @@ internal object EventPayload {
      */
     fun patterns(event: AgentEvent): List<String> {
         val p = event.payload
+        // `always` is the v1 name for the rule a reply would remember; `save`
+        // is the same field on a v2 ask, with `resources` as its `patterns`.
         val rule = p.list("always")?.filterIsInstance<String>()?.takeIf { it.isNotEmpty() }
-        return rule ?: p.list("patterns")?.filterIsInstance<String>().orEmpty()
+            ?: p.list("save")?.filterIsInstance<String>()?.takeIf { it.isNotEmpty() }
+        return rule ?: p.list("patterns")?.filterIsInstance<String>()
+            ?: p.list("resources")?.filterIsInstance<String>().orEmpty()
     }
 
     /**

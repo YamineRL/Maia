@@ -5,6 +5,7 @@ import android.net.ConnectivityManager
 import android.net.LinkProperties
 import android.net.Network
 import android.net.NetworkCapabilities
+import android.util.Log
 import dev.maia.app.feel.Haptics
 import dev.maia.transport.AgentClient
 import dev.maia.transport.HttpRegistrySource
@@ -53,6 +54,8 @@ import java.util.concurrent.atomic.AtomicBoolean
  * prints, logs or returns it.
  */
 object AgentHost {
+
+    private const val TAG = "maia-agent"
 
     private val lock = Any()
 
@@ -234,6 +237,11 @@ object AgentHost {
     private fun identity(secrets: AgentSecrets): Identity {
         secrets.node()?.let { saved ->
             runCatching { return Maiatunnel.loadIdentity(saved) }
+            // A stored key that cannot be read is replaced below, which
+            // changes the public key the devbox allow list pins. Loudly,
+            // because every request then fails at the tunnel and nothing
+            // else says why.
+            Log.w(TAG, "stored node key could not be loaded; rotating identity")
         }
         val fresh = Maiatunnel.newIdentity()
         secrets.storeNode(fresh.privateText())
@@ -255,8 +263,7 @@ object AgentHost {
         // Must happen before any tailscale code runs: netmon reads the
         // interface list as it starts and cannot get it for itself inside an
         // APK.
-        NetFacts.push(app)
-        watchNetworks(app)
+        ensureNetFacts(app)
 
         val node = runCatching { identity(secrets) }.getOrNull()
         val agent = TunnelChannel.open(node, identity.serverAddr, TunnelChannel.PORT)
@@ -386,6 +393,19 @@ object AgentHost {
     var onNetworksChanged: (() -> Unit)? = null
 
     private val watchingNetworks = AtomicBoolean(false)
+
+    /**
+     * The interface facts push and the one network watcher, owed by whichever
+     * host opens a tunnel channel first. This host's build calls it, and so
+     * does AnswerHost's before its assistant channel: a process that only
+     * ever answers questions never builds an AgentHost, and without the push
+     * the Go side cannot read the interface list inside an APK, so every ask
+     * failed at the dial.
+     */
+    internal fun ensureNetFacts(app: Context) {
+        NetFacts.push(app)
+        watchNetworks(app)
+    }
 
     /**
      * Registers the one ConnectivityManager callback for the process.

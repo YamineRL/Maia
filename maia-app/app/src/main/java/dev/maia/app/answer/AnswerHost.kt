@@ -41,11 +41,13 @@ import java.util.concurrent.atomic.AtomicReference
  * answer for a remote question is `RemoteNotSetUp`, which is the honest
  * screen rather than a missing surface.
  *
- * **One network watcher, one process.** `NetFacts.push` and the
- * ConnectivityManager callback belong to [AgentHost], which registered them
- * first and guards the same process-wide Go state. This host's channel, a
- * second `maiatunnel.Agent`, benefits from the same pushed facts and is told
- * about real changes through `AgentHost.onNetworksChanged`, a hook this
+ * **One network watcher, one process.** The interface facts push and the
+ * ConnectivityManager callback are guarded process-wide in
+ * [AgentHost.ensureNetFacts], which the lazy assistant build calls before
+ * opening its channel: a process that only ever answers questions never
+ * builds an AgentHost, and Go cannot read the interface list inside an
+ * APK without them. This host's channel, a second `maiatunnel.Agent`,
+ * hears real changes through `AgentHost.onNetworksChanged`, a hook this
  * file sets when its wiring is built rather than a second registered
  * callback.
  *
@@ -55,6 +57,8 @@ import java.util.concurrent.atomic.AtomicReference
  * Nothing in this file prints, logs or returns it.
  */
 object AnswerHost {
+
+    private const val TAG = "maia-answer"
 
     private val lock = Any()
 
@@ -172,7 +176,7 @@ object AnswerHost {
             ),
             handoffs = HandoffExecutor(app),
             assistantFor = {
-                client.get() ?: buildAssistant(secrets)?.also { (built, chan) ->
+                client.get() ?: buildAssistant(app, secrets)?.also { (built, chan) ->
                     client.set(built)
                     channel.set(chan)
                 }?.first
@@ -193,7 +197,7 @@ object AnswerHost {
             clock = System::currentTimeMillis,
             work = work,
             homeCity = { MaiaPrefs(app).homeCity },
-            trace = { Log.w("maia-answer", it) },
+            trace = { Log.w(TAG, it) },
         )
 
         // One process-wide watcher lives in AgentHost; this host's channel
@@ -214,9 +218,17 @@ object AnswerHost {
      * is what the devbox allow list names and a second identity would be a
      * second phone to the tunnel.
      */
-    private fun buildAssistant(secrets: AgentSecrets): Pair<AssistantClient, AssistantTunnelChannel>? {
+    private fun buildAssistant(
+        app: Context,
+        secrets: AgentSecrets,
+    ): Pair<AssistantClient, AssistantTunnelChannel>? {
         val addr = secrets.load()?.serverAddr?.takeIf { it.isNotBlank() } ?: return null
         val credential = secrets.assistantPassphrase()?.takeIf { it.isNotBlank() } ?: return null
+        // Must happen before this host's first tailcat call, and cannot be
+        // left to AgentHost: a process that only ever answers questions
+        // never builds one, and without the pushed facts the Go side cannot
+        // read the interface list inside an APK, so every dial fails.
+        AgentHost.ensureNetFacts(app)
         val node = runCatching { identity(secrets) }.getOrNull()
         val chan = AssistantTunnelChannel.open(node, addr)
         return AssistantClient(chan, credential) to chan
@@ -225,6 +237,11 @@ object AnswerHost {
     private fun identity(secrets: AgentSecrets): Identity {
         secrets.node()?.let { saved ->
             runCatching { return Maiatunnel.loadIdentity(saved) }
+            // A stored key that cannot be read is replaced below, which
+            // changes the public key the devbox allow list pins. Loudly,
+            // because every ask then fails at the tunnel and nothing else
+            // says why.
+            Log.w(TAG, "stored node key could not be loaded; rotating identity")
         }
         val fresh = Maiatunnel.newIdentity()
         secrets.storeNode(fresh.privateText())

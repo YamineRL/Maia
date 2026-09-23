@@ -451,6 +451,67 @@ class AssistantGrammarTest {
     }
 
     @Test
+    fun `a fragment that opens like a continuation is a conversation`() {
+        // "And of germany" continues a thought already in the air: an event
+        // never opens with a connective, so these are follow-ups, not
+        // drafts titled after their own first word.
+        for (said in listOf(
+            "and of germany",
+            "and tomorrow",
+            "but what about the small one",
+            "or the cheaper one",
+        )) {
+            val intent = parser.parse(said)
+            assertTrue("[$said] became $intent", intent is Intent.Conversation)
+            assertEquals(said, (intent as Intent.Conversation).text)
+        }
+    }
+
+    @Test
+    fun `a live conversation turns the unmatched fallback into a follow-up`() {
+        // What a spoken follow-up leaves once the clock has taken its
+        // share: nothing but a time, which no pattern can claim. With a
+        // conversation live these are continuations, not cards.
+        for (said in listOf("tomorrow", "next friday", "at noon")) {
+            val intent = parser.parseFollowUp(said)
+            assertTrue("[$said] became $intent", intent is Intent.Conversation)
+        }
+    }
+
+    @Test
+    fun `the neutral parse of the same fragments is unchanged`() {
+        // With nothing to follow up on, "tomorrow" is still the honest
+        // card: the follow-up parse is the caller saying a conversation is
+        // live, and without one nothing here moves.
+        for (said in listOf("tomorrow", "next friday")) {
+            assertTrue("[$said] became ${parser.parse(said)}", parser.parse(said) is Intent.Unparsed)
+        }
+    }
+
+    @Test
+    fun `a live conversation does not steal a deterministic sentence`() {
+        // Section 4's order stands inside the follow-up parse too: a timer,
+        // a device fact, and a verbless title all keep their outcomes,
+        // because a follow-up that meant an action still shows the card.
+        assertTrue(parser.parseFollowUp("set a timer for five minutes") is Intent.SetTimer)
+        assertTrue(parser.parseFollowUp("what time is it") is Intent.DeviceFact)
+        assertTrue(parser.parseFollowUp("dentist friday") is Intent.CreateEvent)
+    }
+
+    @Test
+    fun `a live conversation sends an untimed verbless title to the assistant`() {
+        // Seen on the Pixel 2026-09-23: after a question about a city,
+        // "the five best museums" drafted an event with no
+        // day. Only the follow-up parse moves; a timed title keeps its card.
+        for (said in listOf("The five best museums.", "the three best restaurants")) {
+            val intent = parser.parseFollowUp(said)
+            assertTrue("[$said] became $intent", intent is Intent.Conversation)
+        }
+        assertTrue(parser.parseFollowUp("dentist at five") is Intent.CreateEvent)
+        assertTrue(parser.parseFollowUp("lunch with sam tomorrow at noon") is Intent.CreateEvent)
+    }
+
+    @Test
     fun `a single word is never a conversation`() {
         // "spotify" alone keeps whatever the old pipeline made of it; the rule
         // is only that it must not become a question for the devbox.

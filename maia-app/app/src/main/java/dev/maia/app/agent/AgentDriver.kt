@@ -570,15 +570,15 @@ class AgentDriver(
      * There is no withdrawal event. A request abandoned because the turn was
      * interrupted or ended leaves nothing on the stream at all, so a phone
      * that was asleep can hold a live-looking row over a request nobody is
-     * waiting on. `GET /permission` is the only way to find out, and this is
-     * the only caller.
+     * waiting on. The session's pending list is the only way to find out, and
+     * this is the only caller.
      *
      * A failure here is swallowed on purpose. Nothing was observed: the row
      * is not known to be stale, the user pressed nothing, and telling them
      * that a question they did not ask could not be answered would be noise.
      */
     private fun reconcile() {
-        val where = synchronized(lock) { directory } ?: return
+        val target = synchronized(lock) { agentSession } ?: return
         val requestId = synchronized(lock) { session.state.blocked?.requestId } ?: return
         if (requestId.isEmpty()) return
         // Two lists, because a question is not in the permission one. Which
@@ -587,9 +587,9 @@ class AgentDriver(
         val question = synchronized(lock) { session.state.blocked?.kind == BlockKind.Question }
         val pending = try {
             if (question) {
-                client.pendingQuestions(where).map { it.id }
+                client.pendingQuestions(target).map { it.id }
             } else {
-                client.pendingPermissions(where).map { it.id }
+                client.pendingPermissions(target).map { it.id }
             }
         } catch (e: IOException) {
             return
@@ -690,6 +690,13 @@ class AgentDriver(
         val text = e.message.orEmpty().lowercase()
         return when {
             text.contains("connection refused") || text.contains("econnrefused") -> RunFault.NoServer
+            // Go marks every failure to bring a conn up through the tunnel
+            // with "maiatunnel: tunnel dial" (agent.go's dial). Without the
+            // mark the conn was established and the exchange died after it:
+            // a stalled response and a dead tunnel can both say "context
+            // deadline exceeded", and only the first belongs on the
+            // tunnel-off screen.
+            !text.contains("maiatunnel: tunnel dial") -> RunFault.TurnFailed
             else -> RunFault.TunnelOff
         }
     }

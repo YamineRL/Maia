@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/base64"
 	"errors"
+	"fmt"
 	"io"
 	"net"
 	"net/http"
@@ -158,7 +159,17 @@ func (a *Agent) dial(ctx context.Context, _, _ string) (net.Conn, error) {
 	// a bad link.
 	dctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
-	return client.DialTCPPort(dctx, uint16(a.port))
+	conn, err := client.DialTCPPort(dctx, uint16(a.port))
+	if err != nil {
+		// The mark separates "no conn ever came out of the tunnel" from an
+		// exchange that broke after one did, which net/http can describe with
+		// the same text: a dial timeout and a stalled response both say
+		// "context deadline exceeded". Only the first is a dead tunnel, and a
+		// host that cannot tell them apart reports tunnel failures that did
+		// not happen. See faultOf in AgentDriver.kt.
+		return nil, fmt.Errorf("maiatunnel: tunnel dial: %w", err)
+	}
+	return conn, nil
 }
 
 // Reply is one finished HTTP response. Status is the code, so a caller can

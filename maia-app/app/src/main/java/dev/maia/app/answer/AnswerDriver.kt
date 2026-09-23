@@ -176,6 +176,17 @@ class AnswerDriver(
     /** What the screen currently holds, for a surface that has just been created. */
     fun current(): AnswerState = synchronized(lock) { state }
 
+    /**
+     * Whether the session still holds an exchange a follow-up could attach to.
+     *
+     * Asked by the effect runner at parse time, off [work], so it takes
+     * [lock] like [apply] does: the machine and the session it owns are only
+     * ever touched under it. Expiry is the session's own read, which is why
+     * the ten minutes counted here are the same ten the next ask would see.
+     */
+    fun conversationLive(): Boolean =
+        synchronized(lock) { machine.conversation.history(clock()).isNotEmpty() }
+
     override fun close() {
         synchronized(lock) { remoteGeneration++ }
         remote?.cancel()
@@ -316,27 +327,53 @@ class AnswerDriver(
         history: List<Turn>,
         generation: Int,
     ): AnswerEvent {
+        // The cause, in the transport's own fixed words or an exception's
+        // class name: never a word of the question or a reply body. Traced
+        // for every outcome that is not a plain answer, so a phone that
+        // quietly answers from its own model never looks like a working
+        // pairing.
+        var cause = "not paired"
         val remote = if (client == null) {
             // Unpaired, or no assistant credential, or the channel could
             // not be built: all three reach the fault without a tunnel
             // ever being opened.
-            if (buildFailed) AnswerEvent.RemoteUnreachable else AnswerEvent.RemoteNotSetUp
+            if (buildFailed) {
+                cause = "the client could not be built"
+                AnswerEvent.RemoteUnreachable
+            } else {
+                AnswerEvent.RemoteNotSetUp
+            }
         } else {
-            val reply = client.chat(
-                prompt,
-                history,
-                locale = Locale.getDefault().toLanguageTag(),
-                timezone = ZoneId.systemDefault().id,
-            )
+            val reply = try {
+                client.chat(
+                    prompt,
+                    history,
+                    locale = Locale.getDefault().toLanguageTag(),
+                    timezone = ZoneId.systemDefault().id,
+                )
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                // A client that throws must not leave the screen working
+                // forever: it is unreachable, reported like one.
+                cause = "the client threw ${e.javaClass.simpleName}"
+                AssistantReply.Unavailable("cannot reach the assistant")
+            }
             // A reach failure's detail is the transport's own words; every
             // other cause may quote the gateway's body, so only its label.
             if (reply is AssistantReply.Unavailable) {
                 val reach = reply.detail.startsWith("cannot reach") || reply.detail.startsWith("no answer after")
-                trace("devbox unavailable: " + if (reach) reply.detail else reply.detail.substringBefore(':'))
+                cause = if (reach) reply.detail else reply.detail.substringBefore(':')
             }
             remoteEvent(reply)
         }
-        if (client == null) trace("devbox not asked: ${if (buildFailed) "client could not be built" else "not paired"}")
+        when (remote) {
+            AnswerEvent.RemoteUnreachable, AnswerEvent.RemoteNotSetUp ->
+                trace("devbox could not answer: $cause")
+            AnswerEvent.RemoteBusy -> trace("devbox busy")
+            AnswerEvent.RemoteUnusable -> trace("devbox answered unusably: $cause")
+            else -> {}
+        }
         if (remote != AnswerEvent.RemoteUnreachable && remote != AnswerEvent.RemoteNotSetUp) {
             return remote
         }

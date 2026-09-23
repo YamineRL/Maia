@@ -25,11 +25,11 @@ import kotlinx.coroutines.withTimeoutOrNull
  * The on-device half of a remote ask: Gemma 4 E2B through LiteRT-LM, on the
  * Tensor NPU when the dispatch library is present.
  *
- * The model is a Google-published, Tensor-G5-compiled `.litertlm` artifact
- * pushed out of band (scripts/provision-gemma.sh), not downloaded by the
- * app: 3 GB is a deliberate install, and a gated-account credential has no
- * place on the wire this app owns. [installed] is the single gate every
- * caller checks first.
+ * The model is a Google-published, Tensor-G5-compiled `.litertlm` artifact,
+ * ungated on Hugging Face. [dev.maia.app.EngineHolder.fetchLocalModel]
+ * downloads it on unmetered networks only (3 GB), and
+ * scripts/provision-gemma.sh can still push it over USB. [installed] is the
+ * single gate every caller checks first.
  *
  * Everything native is lazy. Constructing this object reads nothing and
  * loads nothing; the first [reply] pays the engine's initialisation, which
@@ -175,6 +175,9 @@ class LiteRtConverser(
 
         /** The directory under `filesDir` the provision script pushes to. */
         const val MODEL_DIR_NAME = "models-gemma"
+
+        const val MODEL_BASE_URL =
+            "https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm/resolve/main"
 
         /** Six exchanges of wire history, minus what the context cannot hold. */
         private const val MAX_LOCAL_TURNS = 8

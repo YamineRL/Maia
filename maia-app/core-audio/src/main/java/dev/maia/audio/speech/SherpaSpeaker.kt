@@ -91,11 +91,25 @@ class SherpaSpeaker(
                 val chunks = Channel<FloatArray>(CHUNK_BACKLOG)
                 val producer = launch(Dispatchers.Default) {
                     try {
-                        tts.generateWithCallback(text, speakerId, speed) { samples ->
-                            // Copied because the array's lifetime after the
-                            // callback returns belongs to the native side.
-                            if (chunks.trySendBlocking(samples.copyOf()).isSuccess) CONTINUE else STOP
-                        }
+                        // An object expression, not a lambda: sherpa's JNI
+                        // looks up the specialised invoke(float[]):Integer
+                        // that only a real class declares. Kotlin 2 compiles
+                        // lambdas through invokedynamic, and the synthesised
+                        // class carries only the erased invoke(Object), so a
+                        // lambda here aborts the process on the first call.
+                        tts.generateWithCallback(
+                            text,
+                            speakerId,
+                            speed,
+                            object : Function1<FloatArray, Int> {
+                                override fun invoke(samples: FloatArray): Int {
+                                    // Copied because the array's lifetime
+                                    // after the callback returns belongs to
+                                    // the native side.
+                                    return if (chunks.trySendBlocking(samples.copyOf()).isSuccess) CONTINUE else STOP
+                                }
+                            },
+                        )
                     } finally {
                         chunks.close()
                     }

@@ -1,7 +1,11 @@
 package dev.maia.app
 
 import android.content.Context
+import android.net.ConnectivityManager
 import android.util.Log
+import dev.maia.app.answer.LiteRtConverser
+import dev.maia.app.ui.DownloadCopy
+import dev.maia.app.ui.ModelDownload
 import dev.maia.audio.AudioCapture
 import dev.maia.audio.ModelStore
 import dev.maia.audio.OfflineModelStore
@@ -11,11 +15,13 @@ import dev.maia.audio.StreamingRecognizer
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -65,6 +71,8 @@ sealed interface Warmth {
 object EngineHolder {
 
     private const val TAG = "MaiaAudio"
+    private const val GEMMA = "gemma"
+    private const val RESCORER = "rescorer"
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val lock = Mutex()
@@ -132,6 +140,56 @@ object EngineHolder {
         }
     }
 
+    private val _downloads = MutableStateFlow<Map<String, ModelDownload>>(emptyMap())
+
+    /** Background model downloads in flight, keyed by model, for the idle screen's strip. */
+    val downloads: StateFlow<Map<String, ModelDownload>> = _downloads.asStateFlow()
+
+    private fun progressReporter(key: String): (ModelDownload) -> Unit {
+        var last = 0L
+        return { download ->
+            val now = System.nanoTime()
+            if (now - last >= 250_000_000L || download.bytesDone >= download.bytesTotal) {
+                last = now
+                _downloads.update { it + (key to download) }
+            }
+        }
+    }
+
+    private fun downloadEnded(key: String) = _downloads.update { it - key }
+
+    @Volatile
+    private var localModelFetch: Job? = null
+
+    /**
+     * Fetch the missing Gemma fallback on an unmetered network, or on any network when the
+     * user asked from settings ([anyNetwork]); resumes at the next launch.
+     */
+    fun fetchLocalModel(context: Context, anyNetwork: Boolean = false) {
+        val app = context.applicationContext
+        if (localModelFetch?.isActive == true) return
+        val dir = File(app.filesDir, LiteRtConverser.MODEL_DIR_NAME)
+        if (File(dir, LiteRtConverser.MODEL_FILE).isFile) return
+        val connectivity = app.getSystemService(ConnectivityManager::class.java)
+        if (!anyNetwork && (connectivity == null || connectivity.isActiveNetworkMetered)) return
+        localModelFetch = scope.launch {
+            val report = progressReporter(GEMMA)
+            try {
+                OfflineModelStore(dir, LiteRtConverser.MODEL_BASE_URL, files = listOf(LiteRtConverser.MODEL_FILE))
+                    .ensure().collect { p ->
+                        if (p is OfflineModelStore.Progress.Downloading) {
+                            report(ModelDownload(DownloadCopy.OFFLINE_ANSWERS, p.bytes, p.totalBytes, p.bytesPerSecond))
+                        }
+                    }
+                Log.i(TAG, "local model on disk")
+            } catch (e: Exception) {
+                Log.w(TAG, "local model download stopped, resumes at next launch", e)
+            } finally {
+                downloadEnded(GEMMA)
+            }
+        }
+    }
+
     private suspend fun loadRescorer(app: Context): Rescorer {
         // async's failure mode is silence: nobody ever awaits rescoreLoading,
         // so an uncaught throw here would sit in the Deferred forever with
@@ -142,7 +200,31 @@ object EngineHolder {
         // "still downloading".
         try {
             val store = OfflineModelStore(File(app.filesDir, "models-parakeet"))
-            store.ensure().collect { }
+            val report = progressReporter(RESCORER)
+            var finished = 0L
+            var index = 0
+            var fileTotal = 0L
+            try {
+                store.ensure().collect { p ->
+                    if (p is OfflineModelStore.Progress.Downloading) {
+                        if (p.index != index) {
+                            finished += fileTotal.coerceAtLeast(0)
+                            index = p.index
+                        }
+                        fileTotal = p.totalBytes
+                        report(
+                            ModelDownload(
+                                DownloadCopy.SPEECH_ACCURACY,
+                                finished + p.bytes,
+                                OfflineModelStore.APPROXIMATE_BYTES,
+                                p.bytesPerSecond,
+                            )
+                        )
+                    }
+                }
+            } finally {
+                downloadEnded(RESCORER)
+            }
             Log.i(TAG, "rescore model on disk, loading into a recognizer")
             return ParakeetRescorer(store.paths()).also {
                 rescoreReady = it

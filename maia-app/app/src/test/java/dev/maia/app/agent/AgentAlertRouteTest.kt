@@ -184,7 +184,7 @@ class AgentAlertRouteTest {
     @Test
     fun `a tunnel that is down says so on the screen and posts nothing`() {
         val w = wiring(maia)
-        w.channel.failWith = java.io.IOException("dial tcp: no route to host")
+        w.channel.failWith = java.io.IOException("maiatunnel: tunnel dial: dial tcp: no route to host")
         w.driver.instruct(ProjectRef.Numbered(7), "run the tests", "project seven run the tests")
 
         assertEquals(RunFault.TunnelOff, w.state.fault)

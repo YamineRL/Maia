@@ -18,6 +18,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.Closeable
@@ -106,13 +107,14 @@ class AnswerDriverTest {
     }
 
     private class Harness(
-        channel: FakeChannel? = FakeChannel(),
+        channel: AssistantChannel? = FakeChannel(),
         converser: FakeConverser? = null,
         battery: () -> Int? = { 64 },
         var handoff: HandoffOutcome = HandoffOutcome.Opened,
     ) {
         val states = mutableListOf<AnswerState>()
         val felt = mutableListOf<Pattern>()
+        val traced = mutableListOf<String>()
         val speaker = ScriptedSpeaker(frameMillis = 1)
         var now = 1_000L
         val clock = Clock.fixed(Instant.parse("2026-09-22T10:30:00Z"), ZoneId.of("Europe/London"))
@@ -131,6 +133,7 @@ class AnswerDriverTest {
             clock = { now },
             work = here,
             scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined),
+            trace = { traced += it },
         )
 
         val current: AnswerState get() = driver.current()
@@ -245,6 +248,46 @@ class AnswerDriverTest {
         h.settle()
         assertEquals(AnswerStatus.Failed, h.current.status)
         assertEquals(AnswerFault.Busy, h.current.fault)
+    }
+
+    // ------------------------------------------------------- the trace
+
+    @Test
+    fun `every non-answer remote outcome leaves a trace line`() {
+        // No client, reach failure, refused credential, busy, unusable: a
+        // phone answering from its own model must never look like a working
+        // pairing, so each road down writes why.
+        val cases = listOf(
+            null to "not paired",
+            FakeChannel(Reply(500, "")) to "HTTP 500",
+            FakeChannel(Reply(401, "")) to "wrong or missing credential",
+            FakeChannel(Reply(503, "")) to "busy",
+            FakeChannel(Reply(200, "{")) to "unparseable",
+        )
+        for ((channel, expected) in cases) {
+            val h = Harness(channel = channel)
+            h.driver.handle(AssistantCommand.Ask("anything", "anything"))
+            h.settle()
+            assertTrue("expected a trace naming $expected, got ${h.traced}",
+                h.traced.any { it.contains(expected) })
+        }
+    }
+
+    @Test
+    fun `a thrown client is unreachable and traced, never a stuck screen`() {
+        val channel = object : AssistantChannel {
+            override fun authorise(credential: String) {}
+            override fun request(method: String, path: String, body: String?): Reply =
+                throw IllegalStateException("channel dead")
+            override fun stream(path: String, sink: LineSink): Closeable = Closeable { }
+            override fun close() {}
+        }
+        val h = Harness(channel = channel)
+        h.driver.handle(AssistantCommand.Ask("anything", "anything"))
+        h.settle()
+        assertEquals(AnswerStatus.Failed, h.current.status)
+        assertEquals(AnswerFault.Unreachable, h.current.fault)
+        assertTrue(h.traced.any { it.contains("cannot reach") })
     }
 
     // --------------------------------------------------- the local model
@@ -396,6 +439,28 @@ class AnswerDriverTest {
         h.settle()
         h.driver.clear()
         assertEquals(AnswerState(), h.current)
+    }
+
+    @Test
+    fun `the parse can ask whether a follow-up has anything to attach to`() {
+        val h = Harness()
+        assertFalse(h.driver.conversationLive())
+        h.driver.handle(AssistantCommand.Ask("why do leaves change colour", "why do leaves change colour"))
+        h.settle()
+        assertTrue(h.driver.conversationLive())
+        // The same ten minutes the next ask would see: a stale session is
+        // not a conversation a fragment should be routed into.
+        h.now += ConversationSession.EXPIRY_MS
+        assertFalse(h.driver.conversationLive())
+    }
+
+    @Test
+    fun `a cleared conversation is no longer live`() {
+        val h = Harness()
+        h.driver.handle(AssistantCommand.Ask("why do leaves change colour", "why do leaves change colour"))
+        h.settle()
+        h.driver.clear()
+        assertFalse(h.driver.conversationLive())
     }
 
     @Test

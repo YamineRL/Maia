@@ -22,18 +22,31 @@ import java.net.URLEncoder
  * `POST /api/session` takes an optional `agent`, and a session created without
  * one is created without a harness: the request succeeds and the five Fusion
  * agents are simply absent. So [createSession] always names one.
+ *
+ * It also takes an optional `model`, and this one is not optional in effect:
+ * a session created without one gets the server's catalog default, which is
+ * OpenCode Zen's free model, not the lead the harness is configured around.
+ * The agent's own configured model is never consulted by the session runner.
+ * So [createSession] always names that too.
  */
 class AgentClient(
     private val channel: AgentChannel,
     /** The harness to run. Never null, for the reason in the class comment. */
     private val defaultAgent: String = "fusion",
+    /** The lead model ref, for the reason in the class comment. */
+    private val defaultModel: ModelRef = LEAD_MODEL,
 ) : Closeable {
 
     /** Creates a session in [directory]. The directory must be absolute. */
-    fun createSession(directory: String, agent: String = defaultAgent): Session {
+    fun createSession(
+        directory: String,
+        agent: String = defaultAgent,
+        model: ModelRef = defaultModel,
+    ): Session {
         require(directory.startsWith("/")) { "directory must be absolute: $directory" }
         val body = Json.obj(
             "agent" to agent,
+            "model" to mapOf("providerID" to model.providerId, "id" to model.id),
             "location" to mapOf("directory" to directory),
         )
         val data = dataOf(channel.request("POST", "/api/session", body))
@@ -79,26 +92,19 @@ class AgentClient(
     }
 
     /**
-     * Answers a `permission.asked` that stopped an agent.
+     * Answers a `permission.v2.asked` that stopped an agent.
      *
-     * The route is the older `POST /permission/{requestID}/reply`, not the
-     * `/api/session/{id}/permission/{id}/reply` that the OpenAPI document also
-     * advertises. Both exist in opencode 1.18.31 and only this one works here:
-     * every v2 permission route answers 500 on this server, with
-     * `TypeError: undefined is not an object (evaluating 'a.name')` in
-     * `~/.local/share/opencode/log/opencode.log`, the same fault that takes out
-     * `GET /api/agent` and `GET /api/session/{id}`. The v1 routes are also the
-     * ones that match what the phone actually receives: `permission.asked`
-     * carries the v1 shape, with `permission`, `patterns` and `always`, and not
-     * the v2 `action`/`resources`.
-     *
-     * `?directory=` is not optional here even though the schema marks it so.
-     * The server holds pending permissions in an in-memory map owned by the
-     * per-project instance, so a reply that names no directory looks for the
-     * request in the instance for the server's own working directory, does not
-     * find it, and is indistinguishable from a reply that arrived too late.
-     * Passing the session's directory is what sends it to the map that holds
-     * the request.
+     * The route is the session-scoped
+     * `POST /api/session/{id}/permission/{requestID}/reply`. The session id
+     * does the work `?directory=` did on the v1 route: the pending request
+     * lives in a map owned by one project instance, and the session scopes
+     * the lookup to the instance that holds it. Verified live on this server:
+     * a real `external_directory` ask listed through
+     * `GET /api/session/{id}/permission`, took `{"reply":"once"}` on this
+     * route, and the suspended tool call then completed. The v1
+     * `/permission/{id}/reply` route still answers, but it is blind to v2
+     * asks: `GET /permission?directory=` returned `[]` while this request was
+     * pending, so a reply through it is a reply to nothing.
      *
      * The return value carries the one distinction a phone screen depends on.
      * [ReplyOutcome.ACCEPTED] means the agent has been unblocked.
@@ -113,7 +119,7 @@ class AgentClient(
      * the reply reaches the server and the response is lost on the way back, a
      * retry of the same id answers 404 and reads as [ReplyOutcome.GONE]
      * when the agent was in fact unblocked. The event stream settles it: a
-     * successful reply publishes `permission.replied` carrying this
+     * successful reply publishes `permission.v2.replied` carrying this
      * `requestID`, so a caller that was subscribed knows which happened.
      */
     fun replyPermission(
@@ -122,7 +128,7 @@ class AgentClient(
         reply: PermissionReply,
         message: String? = null,
     ): ReplyOutcome {
-        val path = "/permission/$requestId/reply" + query(session.directory)
+        val path = "/api/session/${session.id}/permission/$requestId/reply"
         val body = Json.obj("reply" to reply.wire, "message" to message)
         return outcomeOf(channel.request("POST", path, body))
     }
@@ -142,30 +148,35 @@ class AgentClient(
     }
 
     /**
-     * Lists the permission requests still waiting in [directory].
+     * Lists the permission requests still waiting in [session].
      *
      * This is how a phone that was offline reconciles, and it is the only way:
-     * the server publishes `permission.asked` when a request appears and
-     * `permission.replied` when one is answered, and publishes nothing at all
-     * when a request is abandoned because the turn was interrupted or ended.
-     * A notification that was missed, or one whose request has since gone
-     * stale, leaves no trace on the stream. The pending list does.
+     * the server publishes `permission.v2.asked` when a request appears and
+     * `permission.v2.replied` when one is answered, and publishes nothing at
+     * all when a request is abandoned because the turn was interrupted or
+     * ended. A notification that was missed, or one whose request has since
+     * gone stale, leaves no trace on the stream. The pending list does.
      *
-     * `GET /permission` is global to one project instance rather than scoped to
-     * a session, so callers filter by [PendingPermission.sessionId].
+     * `GET /api/session/{id}/permission` is scoped to the session, which is
+     * what the reconcile path wants: no directory argument, no filtering by
+     * [PendingPermission.sessionId]. Verified live on this server against a
+     * suspended `external_directory` ask; the v1 `GET /permission` answered
+     * `[]` for the same pending request.
      */
-    fun pendingPermissions(directory: String): List<PendingPermission> {
-        require(directory.startsWith("/")) { "directory must be absolute: $directory" }
-        val body = bodyOf(channel.request("GET", "/permission" + query(directory)))
+    fun pendingPermissions(session: Session): List<PendingPermission> {
+        val body = dataOf(channel.request("GET", "/api/session/${session.id}/permission"))
         val rows = body as? List<*> ?: return emptyList()
         return rows.mapNotNull { row ->
             val id = row.string("id") ?: return@mapNotNull null
             PendingPermission(
                 id = id,
-                sessionId = row.string("sessionID") ?: "",
-                permission = row.string("permission") ?: "",
-                patterns = row.list("patterns").orEmpty().filterIsInstance<String>(),
-                always = row.list("always").orEmpty().filterIsInstance<String>(),
+                sessionId = row.string("sessionID") ?: session.id,
+                // The v2 names: `action` is the rule that stopped the agent,
+                // `resources` is what was asked for, `save` is what "always"
+                // would remember.
+                permission = row.string("action") ?: "",
+                patterns = row.list("resources").orEmpty().filterIsInstance<String>(),
+                always = row.list("save").orEmpty().filterIsInstance<String>(),
             )
         }
     }
@@ -205,24 +216,11 @@ class AgentClient(
      * the same thing and is refused here, because it would reach the model as
      * an answer of `""`.
      *
-     * The route is the v1 `POST /question/{requestID}/reply`, for the reason
-     * in [replyPermission]. Answers are [ReplyOutcome], exactly as for a
-     * permission.
-     *
-     * `?directory=` is not optional, whatever the spec says. Observed against a
-     * live pending question on opencode 1.18.31, 2026-09-21: the same body to
-     * the same id returns 404 `{"_tag":"QuestionNotFoundError",...}` without it
-     * and 200 with it, and after the 404 the question is still pending. The
-     * OpenAPI document marks the parameter `required: false`, so this is a
-     * trap: omitting it does not fail loudly, it reports the question as gone.
-     * A caller that dropped the directory would show the user "that question
-     * expired" for a question the agent is still blocked on. [ReplyOutcome.GONE]
-     * is only trustworthy because [query] always sends it.
-     *
-     * A 200 carries the bare JSON literal `true`, four bytes, content type
-     * application/json, not an object. Replaying the same reply once it has
-     * been consumed is the 404 path, so the two outcomes are exactly the two
-     * the enum has. Observed 2026-09-21.
+     * The route is the session-scoped
+     * `POST /api/session/{id}/question/{requestID}/reply`, for the reason in
+     * [replyPermission]: the session id replaces the `?directory=` the v1
+     * route needed to find the right project instance. Answers are
+     * [ReplyOutcome], exactly as for a permission.
      */
     fun replyQuestion(
         session: Session,
@@ -230,7 +228,7 @@ class AgentClient(
         answers: List<List<String>>,
     ): ReplyOutcome {
         require(answers.all { answer -> answer.all(String::isNotBlank) }) { "blank answer" }
-        val path = "/question/$requestId/reply" + query(session.directory)
+        val path = "/api/session/${session.id}/question/$requestId/reply"
         val body = Json.obj("answers" to answers)
         return outcomeOf(channel.request("POST", path, body))
     }
@@ -248,31 +246,21 @@ class AgentClient(
      * without also throwing away the work the turn has already done.
      */
     fun rejectQuestion(session: Session, requestId: String): ReplyOutcome {
-        val path = "/question/$requestId/reject" + query(session.directory)
+        val path = "/api/session/${session.id}/question/$requestId/reject"
         return outcomeOf(channel.request("POST", path, null))
     }
 
     /**
-     * Lists the questions still waiting in [directory].
+     * Lists the questions still waiting in [session].
      *
      * The reconciliation path, for the reason [pendingPermissions] gives: the
-     * server publishes `question.asked`, `question.replied` and
-     * `question.rejected` and nothing when a question is simply abandoned, so
-     * a phone that was offline cannot infer the current state from the stream.
-     *
-     * `GET /question` is global to one project instance, so callers filter by
-     * [PendingQuestion.sessionId].
-     *
-     * The absolute-directory guard below is not defensive tidiness. Observed
-     * 2026-09-21: with a question genuinely pending, `GET /question` with no
-     * `?directory=` returns 200 and an empty array rather than an error, while
-     * the same call with the directory returns the row. Every way of getting
-     * the directory wrong on this API fails silently and looks like "nothing is
-     * waiting", so the guard fails loudly instead.
+     * server publishes `question.v2.asked`, `question.v2.replied` and
+     * `question.v2.rejected` and nothing when a question is simply abandoned,
+     * so a phone that was offline cannot infer the current state from the
+     * stream. Scoped to the session like the permission list.
      */
-    fun pendingQuestions(directory: String): List<PendingQuestion> {
-        require(directory.startsWith("/")) { "directory must be absolute: $directory" }
-        val body = bodyOf(channel.request("GET", "/question" + query(directory)))
+    fun pendingQuestions(session: Session): List<PendingQuestion> {
+        val body = dataOf(channel.request("GET", "/api/session/${session.id}/question"))
         val rows = body as? List<*> ?: return emptyList()
         return rows.mapNotNull { PendingQuestion.from(it) }
     }
@@ -447,6 +435,22 @@ data class Session(
     val agent: String,
     val directory: String,
 )
+
+/**
+ * A model as the session API names it: `{"providerID","id"}`.
+ *
+ * The provider id is `mergegw`, not `merge-gateway`. The builtin
+ * `merge-gateway` provider is catalogued with a provider package the v2
+ * session runner cannot route, so sessions on it fail with
+ * `ModelUnavailableError` and the server silently substitutes Zen's free
+ * model. `mergegw` is the same gateway declared as a generic
+ * OpenAI-compatible provider in `~/.config/opencode/opencode.json` on the
+ * devbox, which is the route the runner supports.
+ */
+data class ModelRef(val providerId: String, val id: String)
+
+/** The lead model the Fusion profile selects, in the form the runner resolves. */
+val LEAD_MODEL = ModelRef("mergegw", "zai/glm-5.3")
 
 /** What the server says when it has accepted an instruction. */
 data class Admitted(val messageId: String, val sessionId: String, val delivery: String)

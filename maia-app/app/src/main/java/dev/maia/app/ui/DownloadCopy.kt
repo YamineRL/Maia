@@ -16,6 +16,9 @@ object DownloadCopy {
 
     private const val MEGABYTE = 1024.0 * 1024.0
 
+    const val OFFLINE_ANSWERS = "Downloading offline answers"
+    const val SPEECH_ACCURACY = "Downloading sharper speech recognition"
+
     /** `32.4 / 70.0 MB`, or `32.4 MB` while the total is unknown. Never more done than total. */
     fun bytes(done: Long, total: Long): String {
         val d = done.coerceAtLeast(0) / MEGABYTE

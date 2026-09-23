@@ -120,6 +120,19 @@ object EventType {
     const val SESSION_ERROR = "session.error"
     const val PERMISSION_ASKED = "permission.asked"
     const val QUESTION_ASKED = "question.asked"
+
+    /**
+     * The names the v2 session runner actually emits on `/api/event`.
+     *
+     * Observed live: a suspended `external_directory` ask publishes
+     * `permission.v2.asked` carrying `{id, sessionID, action, resources,
+     * save}`, and the answered request publishes `permission.v2.replied`.
+     * The undotted `permission.asked` is the v1 event this build does not
+     * send for sessions on the v2 API. Both spellings stay in [BLOCKING]:
+     * the union grows, and either one wants a human.
+     */
+    const val PERMISSION_V2_ASKED = "permission.v2.asked"
+    const val QUESTION_V2_ASKED = "question.v2.asked"
     const val TODO_UPDATED = "todo.updated"
     const val TEXT_DELTA = "session.next.text.delta"
     const val TEXT_ENDED = "session.next.text.ended"
@@ -157,7 +170,7 @@ object EventType {
     const val TOOL_CALLED = "session.next.tool.called"
 
     /** The ones that mean an agent has stopped and wants a human. */
-    val BLOCKING = setOf(PERMISSION_ASKED, QUESTION_ASKED)
+    val BLOCKING = setOf(PERMISSION_ASKED, QUESTION_ASKED, PERMISSION_V2_ASKED, QUESTION_V2_ASKED)
 
     /** The ones that end a turn, whether or not it went well. */
     val TERMINAL = setOf(SESSION_IDLE, SESSION_ERROR, STEP_FAILED)

@@ -21,7 +21,14 @@ sealed interface Effect {
     data class StopCapture(val discardAudio: Boolean) : Effect
 
     data class Haptic(val pattern: Pattern) : Effect
-    data class Parse(val text: String) : Effect
+    /**
+     * Parse the heard sentence. [surface] is which modal screen the
+     * invocation came from, carried verbatim from the press: the runner
+     * reads it to pick [dev.maia.nlu.Parser.parseAgentTurn] over the neutral
+     * parse, which is the only thing the run screen changes about a
+     * sentence.
+     */
+    data class Parse(val text: String, val surface: Surface = Surface.Neutral) : Effect
 
     /** Ask the provider where a commit would go. Answered by [FlowEvent.TargetLoaded]. */
     data object LoadTarget : Effect

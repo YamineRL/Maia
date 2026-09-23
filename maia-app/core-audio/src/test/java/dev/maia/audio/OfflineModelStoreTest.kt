@@ -74,6 +74,20 @@ class OfflineModelStoreTest {
     }
 
     @Test
+    fun `a custom file list fetches only those files`() = runTest {
+        val only = "single.bin"
+        origin.bodies[only] = ByteArray(700) { it.toByte() }
+        val store = OfflineModelStore(temp.root, origin.url, files = listOf(only))
+        assertFalse(store.isComplete)
+
+        store.ensure().toList()
+
+        assertTrue(store.isComplete)
+        assertTrue(file(only).readBytes().contentEquals(origin.bodies.getValue(only)))
+        OfflineModelStore.FILES.forEach { assertFalse("$it was fetched", file(it).exists()) }
+    }
+
+    @Test
     fun `a complete download lands with the exact bytes and leaves no part file`() = runTest {
         val progress = store().ensure().toList()
 

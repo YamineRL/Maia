@@ -13,6 +13,7 @@ import dev.maia.actions.notes.SafNotes
 import dev.maia.app.agent.AgentAck
 import dev.maia.app.agent.AgentDriver
 import dev.maia.app.agent.AgentHost
+import dev.maia.app.answer.AnswerHost
 import dev.maia.app.feel.Haptics
 import dev.maia.app.feel.Schedule
 import dev.maia.app.flow.AgentCommand
@@ -20,6 +21,7 @@ import dev.maia.app.flow.Effect
 import dev.maia.app.flow.EffectRunner
 import dev.maia.app.flow.FlowEvent
 import dev.maia.app.flow.Origin
+import dev.maia.app.flow.Surface
 import dev.maia.app.flow.loadNotesFolder
 import dev.maia.app.flow.writeNote
 import dev.maia.app.screens.RunCopy
@@ -140,7 +142,20 @@ class AndroidEffects(
             // backstop if this still is not the whole story.
             is Effect.Parse -> {
                 val intent = try {
-                    parser.parse(effect.text)
+                    // The surface the sentence was said over picks the
+                    // fallback for a sentence nothing claims: a run on
+                    // screen takes it as the session's next instruction
+                    // (M8 PRD section 13), and a live conversation takes it
+                    // as a follow-up rather than a calendar draft (M9 PRD
+                    // section 4). A driver that does not exist yet has no
+                    // exchanges to follow up on, so `current()` and never
+                    // `answer()`: the check must not build one.
+                    when {
+                        effect.surface == Surface.Agent -> parser.parseAgentTurn(effect.text)
+                        AnswerHost.current()?.conversationLive() == true ->
+                            parser.parseFollowUp(effect.text)
+                        else -> parser.parse(effect.text)
+                    }
                 } catch (e: Exception) {
                     Log.e(TAG, "parser threw on a final transcript, falling back to unparsed", e)
                     dev.maia.nlu.Intent.Unparsed(
@@ -176,6 +191,14 @@ class AndroidEffects(
             // nothing here is launched into [scope]: a four-minute agent turn
             // is not an effect's lifetime.
             is Effect.RunAgent -> withContext(Dispatchers.Default) {
+                // M9 PRD section 3.1: entering the agent surface ends the
+                // answer conversation, so a follow-up on a later visit can
+                // never resolve against a chat the user has walked away
+                // from. `current()` rather than `answer()`: a clear must
+                // not build the driver it would be clearing.
+                if (effect.command is AgentCommand.Instruct || effect.command is AgentCommand.Focus) {
+                    AnswerHost.current()?.clear()
+                }
                 when (val command = effect.command) {
                     is AgentCommand.Instruct ->
                         agent()?.instruct(command.project, command.instruction, command.spoken)
@@ -188,7 +211,7 @@ class AndroidEffects(
                     // settled card so the run surface still hears it.
                     // `current()` rather than `answer()`: a stop aimed at
                     // the run must not build the answer driver to ask it.
-                    AgentCommand.Stop -> dev.maia.app.answer.AnswerHost.current()
+                    AgentCommand.Stop -> AnswerHost.current()
                         ?.takeIf { it.current().claimsStop }
                         ?.stop()
                         ?: agent()?.stop()

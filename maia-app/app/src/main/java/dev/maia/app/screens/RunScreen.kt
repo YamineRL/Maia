@@ -395,9 +395,16 @@ private fun LazyListScope.replyPieces(pieces: List<ReplyPiece>) {
     }
 }
 
+/**
+ * Prose is Markdown. The agent writes it: headings, fences, pipe tables,
+ * lists, and the inline marks inside them all arrive in this piece, since the
+ * machine appends every text delta here verbatim. Rendering is [MarkdownBody];
+ * a delta re-parses only this tail piece, which already recomposed for the
+ * appended text anyway.
+ */
 @Composable
 private fun Prose(piece: ReplyPiece.Prose) {
-    Text(piece.text, style = Maia.type.body, color = Maia.colours.inkStrong)
+    MarkdownBody(piece.text)
 }
 
 /**

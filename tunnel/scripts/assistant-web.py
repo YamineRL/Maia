@@ -37,10 +37,17 @@ rather than trusted to the caller:
 
   - Queue behind existing generation. GET /slots exposes per-slot
     processing state; a busy slot means someone else's tokens are flowing.
-    This service re-polls until the slot frees or the request's budget
-    expires, then answers busy rather than preempting. Requests are also
-    serialized in-process: one FIFO worker, so a burst of phone requests
-    cannot interleave at llama-server.
+    This service re-polls until the slot frees, then answers busy rather
+    than preempting. Two bounds on that: in router mode /slots needs the
+    model named (`/slots?model=<id>`; a bare call answers 400, which is
+    not evidence of idle), and the wait is capped at
+    ASSISTANT_BUSY_WAIT_SECONDS rather than the full request budget,
+    because a phone gives up after thirty seconds and a busy answer that
+    arrives later lands on a client that is already gone. The slot check
+    only ever names a resident model: /slots?model= on an unloaded id
+    could autoload it, the eviction this gateway exists to prevent.
+    Requests are also serialized in-process: one FIFO worker, so a burst
+    of phone requests cannot interleave at llama-server.
 
 The model contract, enforced by the prompt below and validated again on the
 phone: strict JSON, either {"type":"answer","text":"..."} or
@@ -61,6 +68,9 @@ Config (environment):
                               ~/.config/maia/assistant.env, mode 600
     ASSISTANT_BUDGET_SECONDS  total request budget, default 75
     ASSISTANT_POLL_SECONDS    busy re-poll interval, default 0.35
+    ASSISTANT_BUSY_WAIT_SECONDS  how long to queue behind a busy slot
+                              before answering busy, default 12 (below
+                              the phone's 30s request timeout)
 
 Usage:
     tunnel/scripts/assistant-web.py            # 127.0.0.1:4098
@@ -71,6 +81,7 @@ import base64
 import hmac
 import http.server
 import json
+import re
 import os
 import queue
 import stat
@@ -78,6 +89,7 @@ import sys
 import threading
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 
 HOST = "127.0.0.1"
@@ -151,6 +163,8 @@ class Config:
         self.port = int(env.get("PORT", "4098"))
         self.budget_seconds = float(env.get("ASSISTANT_BUDGET_SECONDS", "75"))
         self.poll_seconds = float(env.get("ASSISTANT_POLL_SECONDS", "0.35"))
+        self.busy_wait_seconds = float(
+            env.get("ASSISTANT_BUSY_WAIT_SECONDS", "12"))
 
 
 class LlamaError(Exception):
@@ -234,15 +248,23 @@ def resident_models(cfg):
     return resident
 
 
-def llama_busy(cfg):
-    """True when any inference slot is processing someone else's work.
+def llama_busy(cfg, model):
+    """True when any inference slot of [model] is processing other work.
+
+    The model must be named: in router mode a bare /slots answers 400,
+    which this function would read as idle, dispatching into an occupied
+    slot where the request then parks until its budget dies. The caller
+    only ever passes a resident id, because naming an unloaded one here
+    could autoload it.
 
     Defensive by policy: a missing endpoint or a response this code cannot
     read means idle, so a llama-server whose /slots shape differs still lets
     Maia requests through rather than queueing forever.
     """
     try:
-        payload = llama_request(cfg, "/slots", timeout=5.0)
+        payload = llama_request(
+            cfg, "/slots?model=" + urllib.parse.quote(model, safe=""),
+            timeout=5.0)
     except LlamaError:
         return False
     if isinstance(payload, dict):
@@ -256,6 +278,12 @@ def llama_busy(cfg):
             continue
         if slot.get("is_processing"):
             return True
+        # Where is_processing exists it is authoritative: this build leaves
+        # id_task holding the last completed task id forever, so a bare
+        # "task id >= 0" reads as permanently busy. Only on a server too old
+        # to report is_processing does a task id still mean work in flight.
+        if "is_processing" in slot:
+            continue
         task = slot.get("id_task", slot.get("task_id", -1))
         if isinstance(task, int) and not isinstance(task, bool) and task >= 0:
             return True
@@ -275,7 +303,9 @@ def chat_completion(cfg, model, job, timeout):
             "model": model,
             "messages": messages,
             "temperature": 0.3,
-            "max_tokens": 300,
+            # The model reasons before it answers, and the reasoning counts
+            # against this cap: at 300 the JSON was cut off mid-answer.
+            "max_tokens": 1024,
             "stream": False,
         },
         timeout=timeout,
@@ -309,7 +339,38 @@ def parse_reply(raw):
         obj = None
     if isinstance(obj, dict) and obj.get("type") in ("answer", "action"):
         return obj
+    salvaged = truncated_answer_text(text)
+    if salvaged:
+        return {"type": "answer", "text": salvaged[:DEGRADED_ANSWER_CHARS]}
     return {"type": "answer", "text": raw[:DEGRADED_ANSWER_CHARS]}
+
+
+TEXT_FIELD = re.compile(r'"text"\s*:\s*"((?:[^"\\]|\\.)*)("?)')
+
+
+def truncated_answer_text(text):
+    """The "text" value of an answer envelope that stopped before it closed.
+
+    The model hitting max_tokens mid-reply leaves JSON that will not parse,
+    and showing it raw puts braces and "spoken" keys on the phone's screen.
+    The prose is still there; take it, and mark it cut when it was.
+    """
+    if '"type"' not in text or '"answer"' not in text:
+        return None
+    match = TEXT_FIELD.search(text)
+    if not match:
+        return None
+    body = match.group(1)
+    if body.endswith("\\"):
+        body = body[:-1]
+    try:
+        value = json.loads('"' + body + '"')
+    except ValueError:
+        return None
+    value = value.strip()
+    if not value:
+        return None
+    return value if match.group(2) else value + "\u2026"
 
 
 def authorised(header, password):
@@ -399,6 +460,9 @@ class Job:
 
 
 def run_job(cfg, job):
+    # Set on the first busy sighting, not at receipt: queueing behind an
+    # earlier Maia request in work_q does not spend the busy budget.
+    busy_deadline = None
     while True:
         remaining = job.deadline - time.monotonic()
         if remaining <= 0:
@@ -415,13 +479,22 @@ def run_job(cfg, job):
                     % len(resident)
                 )
             model = resident[0]
+            # The slot check names the resident model only: /slots?model=
+            # on an unloaded id could autoload it.
+            if llama_busy(cfg, model):
+                now = time.monotonic()
+                if busy_deadline is None:
+                    busy_deadline = now + cfg.busy_wait_seconds
+                if now >= busy_deadline:
+                    # Longer than the phone will wait for an answer: say
+                    # busy now rather than produce one nobody is holding.
+                    return 503, {"error": "busy"}
+                time.sleep(min(cfg.poll_seconds, max(0.05, remaining)))
+                continue
         elif cfg.model:
             model = cfg.model
         else:
             return 503, {"error": "no_model"}
-        if llama_busy(cfg):
-            time.sleep(min(cfg.poll_seconds, max(0.05, remaining)))
-            continue
         try:
             content = chat_completion(
                 cfg, model, job,

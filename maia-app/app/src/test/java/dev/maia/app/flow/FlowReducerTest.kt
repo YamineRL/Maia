@@ -121,6 +121,27 @@ class FlowReducerTest {
     }
 
     @Test
+    fun `the surface the press came from rides to the parse`() {
+        // The run screen leaves composition while the capture holds the
+        // window, so the parse cannot ask what was showing: the invocation
+        // carries it, stamped once like the keyguard read.
+        val run = Run(FlowState.Idle())
+            .send(FlowEvent.Invoke(Origin.Launcher, locked = false, surface = Surface.Agent), at = 0)
+            .send(FlowEvent.CaptureStarted, at = 50)
+            .send(FlowEvent.PartialHeard("din"), at = 300)
+            .send(FlowEvent.FinalHeard(SENTENCE), at = 1_000)
+        assertEquals(Effect.Parse(SENTENCE, Surface.Agent), run.all<Effect.Parse>().single())
+    }
+
+    @Test
+    fun `a press over no surface parses neutral`() {
+        val run = Run(FlowState.Idle())
+            .send(FlowEvent.Press, at = 0)
+            .send(FlowEvent.FinalHeard(SENTENCE), at = 1_000)
+        assertEquals(Effect.Parse(SENTENCE, Surface.Neutral), run.all<Effect.Parse>().single())
+    }
+
+    @Test
     fun `a final of silence returns to idle without parsing`() {
         val step = reduce(FlowState.Listening(0), FlowEvent.FinalHeard("  "), now = 3_000)
         assertEquals(FlowState.Idle(), step.state)

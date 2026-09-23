@@ -622,7 +622,7 @@ private fun arrived(session: RunSession, event: RunEvent.Arrived, now: Long): Ru
         )
 
         in EventType.BLOCKING -> {
-            val kind = if (e.type == EventType.PERMISSION_ASKED) BlockKind.Permission else BlockKind.Question
+            val kind = if (e.type.startsWith("permission")) BlockKind.Permission else BlockKind.Question
             // Section 5.18. Empty for a permission, and empty for a question
             // whose payload did not parse, which is still shown and simply
             // cannot be answered: knowing an agent is waiting beats knowing

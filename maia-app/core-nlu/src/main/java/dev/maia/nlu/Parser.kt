@@ -40,7 +40,9 @@ class Parser(clock: Clock, private val projects: ProjectRegistry = ProjectRegist
 
     private val resolver = TemporalResolver(clock)
 
-    fun parse(transcript: String): Intent {
+    fun parse(transcript: String): Intent = read(transcript, followUp = false)
+
+    private fun read(transcript: String, followUp: Boolean): Intent {
         val words = words(transcript)
         val tokens = Normaliser.normalise(transcript)
         if (tokens.isEmpty()) return unparsed(transcript, tokens)
@@ -90,6 +92,16 @@ class Parser(clock: Clock, private val projects: ProjectRegistry = ProjectRegist
         if (match?.pattern?.name == "create.bare" && !titleLike(residue) && talkable(tokens, words)) {
             return Intent.Conversation(transcript.trim(), transcript)
         }
+        // Inside a live conversation a verbless title with no day and no
+        // time is a follow-up, not a plan: "the five best museums" after a
+        // question about a city asks for a list, and drafting it as an
+        // event led straight to the no-day picker. "dentist friday" keeps
+        // its card, because the day is what makes it a plan.
+        if (followUp && match?.pattern?.name == "create.bare" &&
+            temporal.isEmpty && talkable(tokens, words)
+        ) {
+            return Intent.Conversation(transcript.trim(), transcript)
+        }
         if (match == null) return unparsed(transcript, tokens)
 
         val family = match.pattern.name.substringBefore('.')
@@ -106,6 +118,26 @@ class Parser(clock: Clock, private val projects: ProjectRegistry = ProjectRegist
             else -> event(match, residue, words, temporal, transcript)
         }
     }
+
+    /**
+     * The parse for a sentence said while a conversation is still live.
+     *
+     * Same grammar, one different fallback: with exchanges the user saw still
+     * held (M9 PRD section 4, rule 3), a sentence nothing claimed is a
+     * follow-up to that conversation rather than the start of a calendar
+     * draft. The assistant is the honest fallback there because it still
+     * holds the context "tomorrow" or "and the small one" is continuing;
+     * the card is for a phone with nothing to follow up on. Deterministic
+     * wins are untouched: a timer or a timed verbless title keeps its
+     * outcome, because a follow-up that meant an action still has to show
+     * the card. A verbless title with no day or time is the exception.
+     */
+    fun parseFollowUp(transcript: String): Intent =
+        when (val intent = read(transcript, followUp = true)) {
+            is Intent.Unparsed ->
+                if (transcript.isBlank()) intent else Intent.Conversation(transcript.trim(), transcript)
+            else -> intent
+        }
 
     /**
      * The parse for a sentence said while an agent session is on screen.
@@ -156,8 +188,9 @@ class Parser(clock: Clock, private val projects: ProjectRegistry = ProjectRegist
      * True when what is left once the times are gone could be the name of
      * an event: "lunch with sam", "dentist", "call with the bank". False
      * when it opens the way a sentence does ("i want", "use the", "check
-     * the"), asks about the world ("weather", "score"), runs too long to be
-     * a name anyone reads back, or is only the particles a date stranded
+     * the"), opens the way a follow-up does ("and of", "for the"), asks
+     * about the world ("weather", "score"), runs too long to be a name
+     * anyone reads back, or is only the particles a date stranded
      * ("for", "at the").
      */
     private fun titleLike(residue: Tokens): Boolean {
@@ -165,6 +198,7 @@ class Parser(clock: Clock, private val projects: ProjectRegistry = ProjectRegist
         if (rest.isEmpty() || rest.size > MAX_TITLE_WORDS) return false
         if (rest.all { it in strandedWords }) return false
         if (rest.first() in sentenceOpeners) return false
+        if (rest.first() in continuationWords) return false
         return rest.none { it in worldWords }
     }
 
@@ -189,6 +223,18 @@ class Parser(clock: Clock, private val projects: ProjectRegistry = ProjectRegist
     /** What a removed date leaves behind; a title made only of these is no title. */
     private val strandedWords = setOf(
         "for", "at", "on", "in", "the", "a", "an", "to", "by", "of", "and", "from", "until",
+    )
+
+    /**
+     * Words a follow-up opens with and an event name never does: connectives
+     * and the stranded-date particles minus the articles. "And of germany"
+     * and "for the same one" continue a thought already in the air, while
+     * "the who tickets" is a name that happens to start with "the".
+     */
+    private val continuationWords = setOf(
+        "and", "or", "but", "so", "then", "also", "plus",
+        "for", "to", "of", "from", "by", "until", "at", "on", "in",
+        "with", "about",
     )
 
     private val questionOpeners = setOf(

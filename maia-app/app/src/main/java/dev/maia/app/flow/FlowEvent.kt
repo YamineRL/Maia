@@ -40,11 +40,18 @@ sealed interface FlowEvent {
      * meaning exactly what it meant and the hint stays inside the event the
      * locked invariant already searches over. It is carried and not yet acted
      * on: see [CaptureFamily].
+     *
+     * [surface] is which modal screen was showing at the press, stamped by
+     * the host for the same reason [locked] is: by the time the transcript
+     * exists, the capture has taken the window and the screen that asked the
+     * question may already have left composition. The parse reads it back out
+     * of [Effect.Parse]; the reducer only carries it.
      */
     data class Invoke(
         val origin: Origin,
         val locked: Boolean,
         val family: CaptureFamily = CaptureFamily.Event,
+        val surface: Surface = Surface.Neutral,
     ) : FlowEvent
 
     /**
@@ -177,6 +184,19 @@ enum class Origin { Assistant, Tile, Shortcut, Launcher }
  * `docs/M4-status.md` says so.
  */
 enum class CaptureFamily { Event, Note }
+
+/**
+ * Which modal surface was showing when the sentence was said.
+ *
+ * The run screen is the only one that changes what a sentence means: with a
+ * session on it, a sentence naming no project is that session's next
+ * instruction, which is [dev.maia.nlu.Parser.parseAgentTurn]'s whole
+ * existence. A live conversation is deliberately not a value here: it is a
+ * fact about the answer session rather than the screen, and the effect
+ * runner reads it off the driver at parse time so a power-button follow-up
+ * spoken after the screen closed still counts.
+ */
+enum class Surface { Neutral, Agent }
 
 /**
  * M2's [FlowEvent.Press] read as what it always was: a launcher invocation on

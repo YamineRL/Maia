@@ -102,9 +102,9 @@ fun noDateHeard(draft: EventDraft): Boolean =
  */
 fun reduce(state: FlowState, event: FlowEvent, now: Long, locked: Boolean = false): Step = when (state) {
     is FlowState.FirstRun -> firstRun(state, event)
-    is FlowState.Idle -> if (event.asInvoke() != null) invoke(now) else null
-    is FlowState.Invoking -> capturing(Capture(state.pressedAt, null), event, now)
-    is FlowState.Listening -> capturing(Capture(state.pressedAt, state), event, now)
+    is FlowState.Idle -> event.asInvoke()?.let { invoke(now, surface = it.surface) }
+    is FlowState.Invoking -> capturing(Capture(state.pressedAt, null, state.surface), event, now)
+    is FlowState.Listening -> capturing(Capture(state.pressedAt, state, state.surface), event, now)
     is FlowState.Understanding -> understanding(state, event, now, locked)
     is FlowState.Preview -> preview(state, event, now, locked)
     is FlowState.NoCalendar -> noCalendar(state, event)
@@ -144,20 +144,27 @@ private fun firstRun(state: FlowState.FirstRun, event: FlowEvent): Step? = when 
     else -> null
 }
 
-/** Every invocation starts the same way, whatever it interrupts. */
-private fun invoke(now: Long, before: List<Effect> = emptyList()): Step =
-    Step(FlowState.Invoking(now), before + listOf(Effect.Haptic(Schedule.invoke), Effect.StartCapture))
+/**
+ * Every invocation starts the same way, whatever it interrupts.
+ *
+ * [surface] is the modal screen the press happened on, carried into
+ * [FlowState.Invoking] so the capture can hand it to [Effect.Parse] when
+ * the transcript lands: which surface heard the sentence is a fact about
+ * the press, not about any state the flow reaches afterwards.
+ */
+private fun invoke(now: Long, before: List<Effect> = emptyList(), surface: Surface = Surface.Neutral): Step =
+    Step(FlowState.Invoking(now, surface), before + listOf(Effect.Haptic(Schedule.invoke), Effect.StartCapture))
 
 /** Invoking and Listening take the same events; Invoking is Listening before any word. */
-private class Capture(val pressedAt: Long, val listening: FlowState.Listening?)
+private class Capture(val pressedAt: Long, val listening: FlowState.Listening?, val surface: Surface)
 
 private fun capturing(capture: Capture, event: FlowEvent, now: Long): Step? {
     val listening = capture.listening
     return when (event) {
         FlowEvent.CaptureStarted ->
-            if (listening == null) Step(FlowState.Listening(capture.pressedAt)) else null
+            if (listening == null) Step(FlowState.Listening(capture.pressedAt, surface = capture.surface)) else null
         is FlowEvent.PartialHeard -> {
-            val current = listening ?: FlowState.Listening(capture.pressedAt)
+            val current = listening ?: FlowState.Listening(capture.pressedAt, surface = capture.surface)
             val first = !current.firstPartialFelt && event.text.isNotBlank()
             Step(
                 current.copy(
@@ -178,7 +185,7 @@ private fun capturing(capture: Capture, event: FlowEvent, now: Long): Step? {
                     FlowState.Understanding(event.text, since = now),
                     listOf(
                         Effect.StopCapture(discardAudio = false),
-                        Effect.Parse(event.text),
+                        Effect.Parse(event.text, capture.surface),
                         Effect.ScheduleTick(now + UNDERSTAND_FLOOR_MS),
                     ),
                 )
@@ -528,8 +535,7 @@ private fun writing(state: FlowState.Writing, event: FlowEvent): Step? = when (e
 /** No undo to run out, so no tick: leave, or invoke again. */
 private fun noteConfirmed(event: FlowEvent, now: Long): Step? = when {
     event == FlowEvent.Cancel -> Step(FlowState.Idle())
-    event.asInvoke() != null -> invoke(now)
-    else -> null
+    else -> event.asInvoke()?.let { invoke(now, surface = it.surface) }
 }
 
 private fun committing(state: FlowState.Committing, event: FlowEvent, now: Long): Step? = when (event) {
@@ -581,7 +587,7 @@ private fun confirmed(state: FlowState.Confirmed, event: FlowEvent, now: Long): 
         FlowEvent.SpeechEnded -> if (state.speaking) Step(state.copy(speaking = false)) else null
         // Leaving or invoking again ends the window. The event stays: no delete.
         FlowEvent.Cancel -> Step(FlowState.Idle(), hush)
-        else -> if (event.asInvoke() != null) invoke(now, hush) else null
+        else -> event.asInvoke()?.let { invoke(now, hush, it.surface) }
     }
 }
 
@@ -598,5 +604,5 @@ private fun fault(state: FlowState.Fault, event: FlowEvent, now: Long, locked: B
         }
     }
     FlowEvent.Cancel -> Step(FlowState.Idle(state.transcript))
-    else -> if (event.asInvoke() != null) invoke(now) else null
+    else -> event.asInvoke()?.let { invoke(now, surface = it.surface) }
 }

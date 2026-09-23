@@ -290,7 +290,9 @@ class AgentDriverTest {
     @Test
     fun `no route to the machine is the tunnel fault`() {
         val h = harness(maia)
-        h.channel.failWith = IOException("agent request failed: dial tcp: no route to host")
+        // Go's dial marks every failure to establish the conn, so the real
+        // text carries "maiatunnel: tunnel dial" ahead of the cause.
+        h.channel.failWith = IOException("agent request failed: maiatunnel: tunnel dial: dial tcp: no route to host")
         h.driver.instruct(ProjectRef.Numbered(7), "go", "seven go")
         assertEquals(RunFault.TunnelOff, h.last.fault)
         assertEquals(AgentAck.TunnelOff, h.spoken.single().first)
@@ -299,10 +301,27 @@ class AgentDriverTest {
     @Test
     fun `a silent agent port is not the same fault as a dead tunnel`() {
         val h = harness(maia)
-        h.channel.failWith = IOException("agent request failed: dial tcp 127.0.0.1:4096: connection refused")
+        // The refusal arrives through the dial mark too, and the refused
+        // check runs first so it still reads as the server, not the tunnel.
+        h.channel.failWith = IOException("agent request failed: maiatunnel: tunnel dial: dial tcp 127.0.0.1:4096: connect: connection refused")
         h.driver.instruct(ProjectRef.Numbered(7), "go", "seven go")
         assertEquals(RunFault.NoServer, h.last.fault)
         assertEquals(AgentAck.NoAnswer, h.spoken.single().first)
+    }
+
+    @Test
+    fun `a stalled exchange is not the same fault as a dead tunnel`() {
+        val h = harness(maia)
+        // The conn came up and the response never did: no dial mark. The
+        // timeout text is identical to a dial timeout's, which is exactly
+        // the failure that used to send the user to fix a live tunnel.
+        h.channel.failWith = IOException(
+            "agent request failed: Post \"http://agent.invalid/api/session\": context deadline exceeded",
+        )
+        h.driver.instruct(ProjectRef.Numbered(7), "go", "seven go")
+        assertEquals(RunFault.TurnFailed, h.last.fault)
+        // TurnFailed is shown, never spoken: rule 10.
+        assertTrue(h.spoken.isEmpty())
     }
 
     // ----------------------------------------------------- the silence rule
